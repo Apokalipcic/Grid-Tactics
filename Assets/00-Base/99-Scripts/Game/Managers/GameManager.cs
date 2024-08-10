@@ -12,6 +12,16 @@ public class GameManager : MonoBehaviour
         QualitySettings.vSyncCount = 0;
         Application.targetFrameRate = 60;
 
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         //if (Instance == null)
         //{
         //    Instance = this;
@@ -246,6 +256,68 @@ public class GameManager : MonoBehaviour
         EnemyPawns.Remove(pawn);
         NeutralPawns.Remove(pawn);
     }
+
+    public void ResetCurrentStage()
+    {
+        //Reseting origin for pawns and returning everything how it was
+
+        if (PlayerPawns.Count == 0)
+        {
+            foreach (PawnMovement pawn in PlayerPawns)
+            {
+                pawn.Reset();
+            }
+        }
+
+        if (EnemyPawns.Count == 0)
+        {
+            foreach (PawnMovement pawn in EnemyPawns)
+            {
+                pawn.Reset();
+            }
+        }
+
+        if (NeutralPawns.Count == 0)
+        {
+            foreach (PawnMovement pawn in NeutralPawns)
+            {
+                pawn.Reset();
+            }
+        }
+
+        Debug.Log($"Reset Current Stage was pressed");
+    }
+
+    public void UndoMove()
+    {
+        //Removing everything as it was by 1 turn.
+        if (PlayerPawns.Count == 0)
+        {
+            foreach (PawnMovement pawn in PlayerPawns)
+            {
+                pawn.UndoMove();
+            }
+        }
+
+        if (EnemyPawns.Count == 0)
+        {
+            foreach (PawnMovement pawn in EnemyPawns)
+            {
+                pawn.UndoMove();
+            }
+        }
+
+        if (NeutralPawns.Count == 0)
+        {
+            foreach (PawnMovement pawn in NeutralPawns)
+            {
+                pawn.UndoMove();
+            }
+        }
+
+        Debug.Log($"Undo Move was pressed");
+    }
+
     #endregion
 
     #region UI Management

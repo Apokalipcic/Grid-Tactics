@@ -59,21 +59,26 @@ public class TouchController : MonoBehaviour
 
     private void TryMovePawn(Vector3 targetPosition)
     {
-        if (selectedPawn == null || selectedPawn.IsMoving()) return;
+        if (selectedPawn == null || selectedPawn.IsMoving())
+        {
+            Debug.Log($"TryMovePawn: Invalid state. SelectedPawn={selectedPawn}, IsMoving={selectedPawn?.IsMoving()}");
+            return;
+        }
 
         Vector3 snappedPosition = SnapToGrid(targetPosition);
+        Debug.Log($"TryMovePawn: TargetPosition={targetPosition}, SnappedPosition={snappedPosition}");
 
         if (selectedPawn.IsValidMove(selectedPawn.transform.position, snappedPosition))
         {
-            MovePawn(snappedPosition);
+            Debug.Log("TryMovePawn: Valid move, executing MovePath");
+            selectedPawn.MovePath(snappedPosition);
+
         }
         else
         {
-            // Handle invalid move attempt
-            
-            Debug.Log("Invalid move");
+            Debug.Log("TryMovePawn: Invalid move");
         }
-
+        
         ResetPawnSelection();
     }
 
@@ -113,7 +118,7 @@ public class TouchController : MonoBehaviour
     {
         return new Vector3(
             Mathf.Round(position.x / cellSize) * cellSize,
-            position.y,
+            position.y = 0,
             Mathf.Round(position.z / cellSize) * cellSize
         );
     }
@@ -122,15 +127,27 @@ public class TouchController : MonoBehaviour
     {
         ClearHighlightedCells();
 
+        if (selectedPawn == null)
+        {
+            Debug.LogError("HighlightValidMoves: No pawn selected");
+            return;
+        }
+
         List<Vector3> validMoves = selectedPawn.GetValidMoves(selectedPawn.transform.position);
+        Debug.Log($"HighlightValidMoves: ValidMovesCount={validMoves.Count}");
 
         foreach (Vector3 move in validMoves)
         {
             CubeController cell = GetCellAtPosition(move);
-            if (cell != null && cell.isWalkable)
+            if (cell != null)
             {
                 cell.ChangeHighlightVFX(true);
                 highlightedCells.Add(cell);
+                Debug.Log($"Highlighted cell at position: {move}");
+            }
+            else
+            {
+                Debug.LogWarning($"No cell found at position: {move}");
             }
         }
     }

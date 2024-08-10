@@ -7,23 +7,16 @@ public class PawnMovement : MonoBehaviour
     #region Variables
     [Header("Pawn Properties")]
     public PawnType pawnType;
-    [Range(1,10)]
+    [Range(1, 10)]
     [SerializeField] private int movementRange = 1;
     [SerializeField] private int movementBuff = 0;
 
     [Header("Grid Properties")]
     [SerializeField] private float cellSize = 1f;
 
-    [Header("Height Adjustment")]
-    //[SerializeField] private float offsetY = 0f;
-
     [Header("Movement Properties")]
     [SerializeField] private float jumpHeight = 0.5f;
     [SerializeField] private float moveSpeed = 2f;
-
-    [Header("Origin Reset Values")]
-    [Tooltip("How fast the reset is")]
-    [SerializeField] private float resetSpeed = 0.5f;
 
     private Vector3 lastPosition;
     private Quaternion lastRotation;
@@ -33,6 +26,9 @@ public class PawnMovement : MonoBehaviour
     private Coroutine currentMovement;
     private Collider pawnCollider;
 
+    [Header("Booster Properties")]
+    private string currentBooster = "None";
+
     public enum PawnType
     {
         Normal,
@@ -41,159 +37,184 @@ public class PawnMovement : MonoBehaviour
     }
     #endregion
 
-    #region Unity Lifecycle Methods
+    #region Initialization
     private void Start()
     {
-        originPosition = transform.position;
-        originRotation = transform.rotation;
-
         pawnCollider = GetComponent<Collider>();
+
+        GameManager.Instance.AddPawn(this, this.tag);
     }
     #endregion
 
     #region Movement Methods
-    public void MovePath(Vector3 path)
+    public void MovePath(Vector3 destination)
     {
         if (!isMoving)
         {
             StoreCurrentState();
-            currentMovement = StartCoroutine(MoveToPosition(path));
-            // AudioManager.Instance.Play("PawnMove");
+            List<Vector3> path = CalculatePath(transform.position, destination);
+            if (path != null && path.Count > 0)
+            {
+                currentMovement = StartCoroutine(MoveAlongPath(path));
+            }
+            else
+            {
+                Debug.Log("No valid path found");
+            }
         }
     }
 
-    private IEnumerator MoveToPosition(Vector3 destination)
-    {
-        isMoving = true;
-        Vector3 startPosition = transform.position;
-        float journeyLength = Vector3.Distance(startPosition, destination);
-        float journeyTime = journeyLength / moveSpeed;
-        float elapsedTime = 0f;
-
-        while (elapsedTime < journeyTime)
-        {
-            float t = elapsedTime / journeyTime;
-
-            // Parabolic jump
-            float height = Mathf.Sin(t * Mathf.PI) * jumpHeight;
-
-            Vector3 newPosition = Vector3.Lerp(startPosition, destination, t);
-            newPosition.y += height;
-
-            transform.position = newPosition;
-
-            elapsedTime += Time.deltaTime;
-            yield return null;
-        }
-
-        // Ensure the pawn ends exactly at the destination
-        transform.position = destination;
-        isMoving = false;
-        currentMovement = null;
-        pawnCollider.enabled = true;
-
-        // AudioManager.Instance.Play("PawnLand");
-    }
-
-    public void DeselectThisPawn()
-    {
-        pawnCollider.enabled = true;
-    }
-
-    public void OriginReset()
-    {
-        if (currentMovement != null)
-        {
-            StopCoroutine(currentMovement);
-        }
-        currentMovement = StartCoroutine(ResetToOrigin());
-        // AudioManager.Instance.Play("PawnResetStart");
-    }
-
-    private IEnumerator ResetToOrigin()
+    private IEnumerator MoveAlongPath(List<Vector3> path)
     {
         isMoving = true;
         pawnCollider.enabled = false;
-        Vector3 startPosition = transform.position;
-        Quaternion startRotation = transform.rotation;
-        float journeyLength = Vector3.Distance(startPosition, originPosition);
-        float startTime = Time.time;
 
-        while (transform.position != originPosition || transform.rotation != originRotation)
+        foreach (Vector3 cellPosition in path)
         {
-            float distanceCovered = (Time.time - startTime) * resetSpeed;
-            float fractionOfJourney = distanceCovered / journeyLength;
+            Vector3 startPosition = transform.position;
+            float journeyLength = Vector3.Distance(startPosition, cellPosition);
+            float journeyTime = journeyLength / moveSpeed;
+            float elapsedTime = 0f;
 
-            transform.position = Vector3.Lerp(startPosition, originPosition, fractionOfJourney);
-            transform.rotation = Quaternion.Slerp(startRotation, originRotation, fractionOfJourney);
+            while (elapsedTime < journeyTime)
+            {
+                float t = elapsedTime / journeyTime;
+                float height = Mathf.Sin(t * Mathf.PI) * jumpHeight;
 
-            yield return null;
+                Vector3 newPosition = Vector3.Lerp(startPosition, cellPosition, t);
+                newPosition.y += height;
+
+                transform.position = newPosition;
+
+                elapsedTime += Time.deltaTime;
+                yield return null;
+            }
+
+            transform.position = cellPosition;
         }
 
-        transform.position = originPosition;
-        transform.rotation = originRotation;
         isMoving = false;
         pawnCollider.enabled = true;
         currentMovement = null;
-
-        // AudioManager.Instance.Play("PawnResetComplete");
     }
 
     public bool IsValidMove(Vector3 startPosition, Vector3 endPosition)
     {
-        if (startPosition == endPosition) return false; // Immediately return false if start and end are the same
+        if (startPosition == endPosition) return false;
 
-        pawnCollider.enabled = false;
+        if (currentBooster == "BigJump")
+        {
+            return IsValidBigJumpMove(startPosition, endPosition);
+        }
 
+        List<Vector3> path = CalculatePath(startPosition, endPosition);
+        bool isValid = path != null && path.Count > 0 && path.Count <= movementRange + movementBuff;
+        Debug.Log($"IsValidMove: Start={startPosition}, End={endPosition}, PathCount={path?.Count}, IsValid={isValid}");
+        return isValid;
+    }
+
+    private bool IsValidBigJumpMove(Vector3 startPosition, Vector3 endPosition)
+    {
         Vector3 delta = endPosition - startPosition;
         int deltaX = Mathf.RoundToInt(delta.x / cellSize);
         int deltaZ = Mathf.RoundToInt(delta.z / cellSize);
+        int distance = Mathf.Abs(deltaX) + Mathf.Abs(deltaZ);
 
-        int totalMovement = movementRange + movementBuff;
+        return distance <= movementRange + movementBuff;
+    }
 
-        switch (pawnType)
+    private List<Vector3> CalculatePath(Vector3 start, Vector3 end)
+    {
+        List<Vector3> path = new List<Vector3>();
+        Vector3 current = start;
+        int steps = 0;
+        int maxSteps = movementRange + movementBuff;
+
+        while (current != end && steps < maxSteps)
         {
-            case PawnType.Normal:
-                return IsValidNormalMove(deltaX, deltaZ, totalMovement);
-            case PawnType.Diagonal:
-                return IsValidDiagonalMove(deltaX, deltaZ, totalMovement);
-            case PawnType.Queen:
-                return IsValidQueenMove(deltaX, deltaZ, totalMovement);
-            default:
-                return false;
+            Vector3 next = GetNextCellTowards(current, end);
+            if (next == current) // No valid next cell found
+            {
+                Debug.Log($"CalculatePath: No valid next cell found. Current={current}, End={end}");
+                return null;
+            }
+            path.Add(next);
+            current = next;
+            steps++;
         }
+
+        if (current != end)
+        {
+            Debug.Log($"CalculatePath: Destination not reached. Current={current}, End={end}, Steps={steps}");
+            return null;
+        }
+
+        Debug.Log($"CalculatePath: Path found. Start={start}, End={end}, Steps={steps}");
+        return path;
     }
 
-    private bool IsValidNormalMove(int deltaX, int deltaZ, int totalMovement)
+    private Vector3 GetNextCellTowards(Vector3 current, Vector3 target)
     {
-        return (Mathf.Abs(deltaX) == 0 || Mathf.Abs(deltaZ) == 0) &&
-               (Mathf.Abs(deltaX) + Mathf.Abs(deltaZ) <= totalMovement);
+        Vector3 direction = target - current;
+        Vector3 nextCell = current;
+
+        if (Mathf.Abs(direction.x) >= Mathf.Abs(direction.z))
+        {
+            nextCell.x += Mathf.Sign(direction.x) * cellSize;
+            if (IsCellWalkable(nextCell))
+            {
+                return nextCell;
+            }
+            nextCell = current;
+            nextCell.z += Mathf.Sign(direction.z) * cellSize;
+        }
+        else
+        {
+            nextCell.z += Mathf.Sign(direction.z) * cellSize;
+            if (IsCellWalkable(nextCell))
+            {
+                return nextCell;
+            }
+            nextCell = current;
+            nextCell.x += Mathf.Sign(direction.x) * cellSize;
+        }
+
+        return IsCellWalkable(nextCell) ? nextCell : current;
     }
 
-    private bool IsValidDiagonalMove(int deltaX, int deltaZ, int totalMovement)
+    private bool IsCellWalkable(Vector3 cellPosition)
     {
-        return (Mathf.Abs(deltaX) == Mathf.Abs(deltaZ)) &&
-               (Mathf.Abs(deltaX) <= totalMovement);
+        CubeController cell = GetCellAtPosition(cellPosition);
+        bool isWalkable = cell != null && cell.isWalkable;
+        Debug.Log($"IsCellWalkable: Position={cellPosition}, IsWalkable={isWalkable}");
+        return isWalkable;
     }
 
-    private bool IsValidQueenMove(int deltaX, int deltaZ, int totalMovement)
+    private CubeController GetCellAtPosition(Vector3 position)
     {
-        // Allow diagonal movement
-        bool isDiagonal = Mathf.Abs(deltaX) == Mathf.Abs(deltaZ);
+        Collider[] colliders = Physics.OverlapSphere(position, 0.1f, LayerMask.GetMask("Walkable"));
+        CubeController cell = colliders.Length > 0 ? colliders[0].GetComponent<CubeController>() : null;
+        Debug.Log($"GetCellAtPosition: Position={position}, CellFound={cell != null}");
+        return cell;
+    }
 
-        // Allow straight movement (horizontal, vertical, or diagonal)
-        bool isStraightLine = deltaX == 0 || deltaZ == 0 || isDiagonal;
-
-        // Check if the move is within the total movement range
-        bool isWithinRange = Mathf.Max(Mathf.Abs(deltaX), Mathf.Abs(deltaZ)) <= totalMovement;
-
-        return isStraightLine && isWithinRange;
+    public void ApplyBooster(string boosterType)
+    {
+        currentBooster = boosterType;
+        switch (boosterType)
+        {
+            case "BigJump":
+                // Big Jump is now handled in IsValidMove
+                break;
+            // Add other booster types here
+            default:
+                currentBooster = "None";
+                break;
+        }
     }
 
     public List<Vector3> GetValidMoves(Vector3 startPosition)
     {
-        //startPosition.y = offsetY;
-
         List<Vector3> validMoves = new List<Vector3>();
         int totalMovement = movementRange + movementBuff;
 
@@ -201,19 +222,23 @@ public class PawnMovement : MonoBehaviour
         {
             for (int z = -totalMovement; z <= totalMovement; z++)
             {
-                Vector3 potentialMove = new Vector3(
-                    startPosition.x + x * cellSize,
-                    startPosition.y,
-                    startPosition.z + z * cellSize
-                );
-
-                if (IsValidMove(startPosition, potentialMove))
+                if (Mathf.Abs(x) + Mathf.Abs(z) <= totalMovement) // Manhattan distance check
                 {
-                    validMoves.Add(potentialMove);
+                    Vector3 potentialMove = new Vector3(
+                        startPosition.x + x * cellSize,
+                        startPosition.y,
+                        startPosition.z + z * cellSize
+                    );
+
+                    if (IsValidMove(startPosition, potentialMove))
+                    {
+                        validMoves.Add(potentialMove);
+                    }
                 }
             }
         }
 
+        Debug.Log($"GetValidMoves: StartPosition={startPosition}, ValidMovesCount={validMoves.Count}");
         return validMoves;
     }
     #endregion
@@ -247,6 +272,10 @@ public class PawnMovement : MonoBehaviour
     #endregion
 
     #region Helper Methods
+    public void DeselectThisPawn()
+    {
+        pawnCollider.enabled = true;
+    }
     public void LookAt(Vector3 target)
     {
         transform.LookAt(target);
