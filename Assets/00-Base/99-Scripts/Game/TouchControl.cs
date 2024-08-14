@@ -35,6 +35,11 @@ public class TouchController : MonoBehaviour
     #region Touch Handling
     private void HandleTouch(Vector2 touchPosition)
     {
+        if (GameManager.Instance.CurrentState != GameManager.GameState.PlayerAction)
+        {
+            return; // Only allow interactions during the player's turn
+        }
+
         Ray ray = mainCamera.ScreenPointToRay(touchPosition);
         RaycastHit hit;
 
@@ -50,7 +55,7 @@ public class TouchController : MonoBehaviour
 
     private void SelectPawn(PawnMovement pawn)
     {
-        if (pawn != null && !pawn.IsMoving())
+        if (pawn != null && !pawn.IsMoving() && pawn.CompareTag("Player"))
         {
             selectedPawn = pawn;
             selectedPawn.SelectThisPawn();
@@ -69,7 +74,11 @@ public class TouchController : MonoBehaviour
         targetPosition = gridController.SnapToGrid(targetPosition);
 
         Vector3 currentPosition = selectedPawn.transform.position;
-        if (selectedPawn.IsValidMove(currentPosition, targetPosition))
+
+        int distance = selectedPawn.CalculateDistance(currentPosition, targetPosition);
+
+        if (selectedPawn.IsValidMove(currentPosition, targetPosition) &&
+            GameManager.Instance.GetAmountOfAvailableActionPoints() >= distance)
         {
             Debug.Log("TryMovePawn: Valid move, executing MovePath");
             selectedPawn.MovePath(targetPosition);
@@ -85,10 +94,11 @@ public class TouchController : MonoBehaviour
     private void ResetPawnSelection()
     {
         ClearHighlightedCells();
-        selectedPawn.DeselectThisPawn();
-        selectedPawn = null;
-        // Optionally, you can add some visual or audio feedback here
-        // to indicate that the selection has been reset
+        if (selectedPawn != null)
+        {
+            selectedPawn.DeselectThisPawn();
+            selectedPawn = null;
+        }
     }
     #endregion
 
@@ -103,7 +113,8 @@ public class TouchController : MonoBehaviour
             return;
         }
 
-        List<Vector3> validMoves = selectedPawn.GetValidMoves(selectedPawn.transform.position);
+        int availableActionPoints = GameManager.Instance.GetAmountOfAvailableActionPoints();
+        List<Vector3> validMoves = selectedPawn.GetValidMoves(selectedPawn.transform.position, availableActionPoints);
         Debug.Log($"HighlightValidMoves: ValidMovesCount={validMoves.Count}");
 
         foreach (Vector3 move in validMoves)

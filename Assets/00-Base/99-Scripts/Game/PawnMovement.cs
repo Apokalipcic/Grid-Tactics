@@ -21,8 +21,6 @@ public class PawnMovement : MonoBehaviour
     [SerializeField] private float jumpHeight = 0.5f;
     [SerializeField] private float moveSpeed = 2f;
 
-    [Header("Grid Reference")]
-
 
     private Vector3 lastPosition;
     private Quaternion lastRotation;
@@ -108,6 +106,9 @@ public class PawnMovement : MonoBehaviour
         isMoving = false;
         pawnCollider.enabled = true;
         currentMovement = null;
+        
+        //Only one point for big jump
+        GameManager.Instance.UseActionPoint();
     }
 
     private IEnumerator MoveAlongPath(List<Vector3> path)
@@ -137,6 +138,9 @@ public class PawnMovement : MonoBehaviour
             }
 
             transform.position = cellPosition;
+
+            //Every Step consumes Action Point
+            GameManager.Instance.UseActionPoint();
         }
 
         isMoving = false;
@@ -154,9 +158,10 @@ public class PawnMovement : MonoBehaviour
         }
 
         List<Vector3> path = CalculatePath(startPosition, endPosition);
-        bool isValid = path != null && path.Count > 0 && path.Count <= movementRange + movementBuff;
-        Debug.Log($"IsValidMove: Start={startPosition}, End={endPosition}, PathCount={path?.Count}, IsValid={isValid}");
-        return isValid;
+        int distance = CalculateDistance(startPosition, endPosition);
+        int availableActionPoints = GameManager.Instance.GetAmountOfAvailableActionPoints();
+
+        return path != null && path.Count > 0 && distance <= movementRange + movementBuff && distance <= availableActionPoints;
     }
 
     private bool IsValidBigJumpMove(Vector3 startPosition, Vector3 endPosition)
@@ -250,10 +255,10 @@ public class PawnMovement : MonoBehaviour
         Debug.Log($"Booster: {boosterType} applied");
     }
 
-    public List<Vector3> GetValidMoves(Vector3 startPosition)
+    public List<Vector3> GetValidMoves(Vector3 startPosition, int availableActionPoints)
     {
         List<Vector3> validMoves = new List<Vector3>();
-        int totalRange = movementRange + movementBuff;
+        int totalRange = Mathf.Min(movementRange + movementBuff, availableActionPoints);
 
         // Use a queue for breadth-first search
         Queue<Vector3> toExplore = new Queue<Vector3>();
@@ -310,7 +315,7 @@ public class PawnMovement : MonoBehaviour
         return neighbors;
     }
 
-    private int CalculateDistance(Vector3 start, Vector3 end)
+    public int CalculateDistance(Vector3 start, Vector3 end)
     {
         Vector3 difference = end - start;
         return Mathf.Abs(Mathf.RoundToInt(difference.x / gridController.cellSize)) +

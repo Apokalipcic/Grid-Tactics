@@ -43,17 +43,17 @@ public class GameManager : MonoBehaviour
     public GameState CurrentState { get; private set; }
 
     [Header("Action Points")]
-    [Range(1,5)]
+    [Range(1,25)]
     [SerializeField] private int maxPlayerActions = 3;
-    [Range(1,5)]
+    [Range(1,25)]
     [SerializeField] private int maxEnemyActions = 3;
-    [Range(1,5)]
-    [SerializeField] private int maxNeutralActions = 3;
+    //[Range(1,5)]
+    //[SerializeField] private int maxNeutralActions = 3;
 
     [Header("Pawns")]
     private int currentPlayerActions;
     private int currentEnemyActions;
-    private int currentNeutralActions;
+    //private int currentNeutralActions;
 
     [Header("Reset Properties")]
     [Range(1,10)]
@@ -62,6 +62,13 @@ public class GameManager : MonoBehaviour
     public List<PawnMovement> PlayerPawns { get; private set; } = new List<PawnMovement>();
     public List<PawnMovement> EnemyPawns { get; private set; } = new List<PawnMovement>();
     public List<PawnMovement> NeutralPawns { get; private set; } = new List<PawnMovement>();
+
+    [Header("Script References")]
+    [SerializeField] UserInterface_Script userInterface;
+
+    [Header("Debug")]
+    [SerializeField] bool debug = false;
+
     #endregion
 
     #region Unity Lifecycle
@@ -75,7 +82,7 @@ public class GameManager : MonoBehaviour
     private void SetupGame()
     {
         CurrentState = GameState.Setup;
-        ResetActionPoints();
+        //ResetActionPoints();
 
         for (int i = 0; i < gridCellsHolder.childCount; i++)
         {
@@ -119,9 +126,33 @@ public class GameManager : MonoBehaviour
     private void StartPlayerTurn()
     {
         CurrentState = GameState.PlayerAction;
-        currentPlayerActions = maxPlayerActions;
-        UpdateUI();
+        //currentPlayerActions = maxPlayerActions;
+        StartCoroutine(IncreaseActionPointsPool());
         // Additional logic for starting player turn    
+    }
+
+    private IEnumerator IncreaseActionPointsPool()
+    {
+        if (CurrentState == GameState.PlayerAction)
+        {
+            while (currentPlayerActions != maxPlayerActions)
+            {
+                currentPlayerActions++;
+                userInterface.UpdatePlayerActionPoint(true);
+
+                yield return new WaitForSeconds(0.15f);
+            }
+        }
+        else if (CurrentState == GameState.EnemyAction)
+        {
+            while (currentEnemyActions != maxEnemyActions)
+            {
+                currentEnemyActions++;
+                //userInterface.UpdatePlayerActionPoint(true);
+
+                yield return new WaitForSeconds(0.15f);
+            }
+        }
     }
 
     private void StartEnemyTurn()
@@ -156,7 +187,7 @@ public class GameManager : MonoBehaviour
     private void StartNeutralTurn()
     {
         CurrentState = GameState.NeutralAction;
-        currentNeutralActions = maxNeutralActions;
+        //currentNeutralActions = maxNeutralActions;
         UpdateUI();
         StartCoroutine(ExecuteNeutralTurns());
     }
@@ -169,22 +200,20 @@ public class GameManager : MonoBehaviour
             if (aiController != null)
             {
                 aiController.ExecuteTurn();
-                while (currentNeutralActions > 0 && pawn.IsMoving())
+                while (pawn.IsMoving())
                 {
                     yield return null;
                 }
-                if (currentNeutralActions <= 0) break;
             }
         }
 
-        if (currentNeutralActions > 0)
-        {
-            EndCurrentTurn(); // Move to next turn if actions remain
-        }
+        EndCurrentTurn(); // Move to next turn if actions remain
     }
 
     public void EndCurrentTurn()
     {
+        GameState oldState = CurrentState;
+
         switch (CurrentState)
         {
             case GameState.PlayerAction:
@@ -197,6 +226,8 @@ public class GameManager : MonoBehaviour
                 StartPlayerTurn();
                 break;
         }
+
+        OnDebug($"OldState {oldState} ended, new state {CurrentState} started");
     }
     #endregion
 
@@ -209,7 +240,7 @@ public class GameManager : MonoBehaviour
                 if (currentPlayerActions > 0)
                 {
                     currentPlayerActions--;
-                    UpdateUI();
+                    userInterface.UpdatePlayerActionPoint(false);
                     if (currentPlayerActions == 0) EndCurrentTurn();
                     return true;
                 }
@@ -224,23 +255,25 @@ public class GameManager : MonoBehaviour
                 }
                 break;
             case GameState.NeutralAction:
-                if (currentNeutralActions > 0)
-                {
-                    currentNeutralActions--;
-                    UpdateUI();
-                    if (currentNeutralActions == 0) EndCurrentTurn();
-                    return true;
-                }
                 break;
         }
         return false;
+    }
+
+    public int GetAmountOfAvailableActionPoints()
+    {
+        int amount = CurrentState == GameState.EnemyAction ? currentEnemyActions : currentPlayerActions;
+        
+        OnDebug($"Request Amount of Available Points [{amount}] in state {CurrentState}");
+
+        return amount;
     }
 
     private void ResetActionPoints()
     {
         currentPlayerActions = maxPlayerActions;
         currentEnemyActions = maxEnemyActions;
-        currentNeutralActions = maxNeutralActions;
+        //currentNeutralActions = maxNeutralActions;
     }
     #endregion
 
@@ -359,10 +392,16 @@ public class GameManager : MonoBehaviour
         Debug.Log($"Current State: {CurrentState}");
         Debug.Log($"Player Actions: {currentPlayerActions}/{maxPlayerActions}");
         Debug.Log($"Enemy Actions: {currentEnemyActions}/{maxEnemyActions}");
-        Debug.Log($"Neutral Actions: {currentNeutralActions}/{maxNeutralActions}");
+        //Debug.Log($"Neutral Actions: {currentNeutralActions}/{maxNeutralActions}");
         Debug.Log($"Player Pawns: {PlayerPawns.Count}");
         Debug.Log($"Enemy Pawns: {EnemyPawns.Count}");
         Debug.Log($"Neutral Pawns: {NeutralPawns.Count}");
+    }
+
+    private void OnDebug(string message)
+    {
+        if(debug)
+            Debug.Log(message);
     }
     #endregion
 }
