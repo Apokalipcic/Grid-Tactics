@@ -55,6 +55,10 @@ public class GameManager : MonoBehaviour
     private int currentEnemyActions;
     private int currentNeutralActions;
 
+    [Header("Reset Properties")]
+    [Range(1,10)]
+    [SerializeField] private float resetSpeed = 10;
+
     public List<PawnMovement> PlayerPawns { get; private set; } = new List<PawnMovement>();
     public List<PawnMovement> EnemyPawns { get; private set; } = new List<PawnMovement>();
     public List<PawnMovement> NeutralPawns { get; private set; } = new List<PawnMovement>();
@@ -96,8 +100,9 @@ public class GameManager : MonoBehaviour
 
         while (totalCells > 0)
         {
-            gridCellsHolder.GetChild(forwardIndex).gameObject.SetActive(true);
-            gridCellsHolder.GetChild(backwardIndex).gameObject.SetActive(true);
+            gridCellsHolder.GetChild(forwardIndex).GetComponent<CubeController>().ActivateThisCube();
+            gridCellsHolder.GetChild(backwardIndex).GetComponent<CubeController>().ActivateThisCube();
+
 
             forwardIndex++;
             backwardIndex--;
@@ -261,27 +266,27 @@ public class GameManager : MonoBehaviour
     {
         //Reseting origin for pawns and returning everything how it was
 
-        if (PlayerPawns.Count == 0)
+        if (PlayerPawns.Count != 0)
         {
             foreach (PawnMovement pawn in PlayerPawns)
             {
-                pawn.Reset();
+                pawn.OriginReset(resetSpeed);
             }
         }
 
-        if (EnemyPawns.Count == 0)
+        if (EnemyPawns.Count != 0)
         {
             foreach (PawnMovement pawn in EnemyPawns)
             {
-                pawn.Reset();
+                pawn.OriginReset(resetSpeed);
             }
         }
 
-        if (NeutralPawns.Count == 0)
+        if (NeutralPawns.Count != 0)
         {
             foreach (PawnMovement pawn in NeutralPawns)
             {
-                pawn.Reset();
+                pawn.OriginReset(resetSpeed);
             }
         }
 
@@ -291,7 +296,7 @@ public class GameManager : MonoBehaviour
     public void UndoMove()
     {
         //Removing everything as it was by 1 turn.
-        if (PlayerPawns.Count == 0)
+        if (PlayerPawns.Count != 0)
         {
             foreach (PawnMovement pawn in PlayerPawns)
             {
@@ -299,7 +304,7 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        if (EnemyPawns.Count == 0)
+        if (EnemyPawns.Count != 0)
         {
             foreach (PawnMovement pawn in EnemyPawns)
             {
@@ -307,7 +312,7 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        if (NeutralPawns.Count == 0)
+        if (NeutralPawns.Count != 0)
         {
             foreach (PawnMovement pawn in NeutralPawns)
             {

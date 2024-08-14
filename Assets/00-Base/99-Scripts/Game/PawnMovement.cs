@@ -6,17 +6,23 @@ public class PawnMovement : MonoBehaviour
 {
     #region Variables
     [Header("Pawn Properties")]
-    public PawnType pawnType;
     [Range(1, 10)]
     [SerializeField] private int movementRange = 1;
     [SerializeField] private int movementBuff = 0;
 
+    [Header("Movement Options")]
+    [SerializeField] private bool canMoveDiagonally = false;
+
     [Header("Grid Properties")]
     [SerializeField] private float cellSize = 1f;
+    [SerializeField] private GridController gridController;
 
     [Header("Movement Properties")]
     [SerializeField] private float jumpHeight = 0.5f;
     [SerializeField] private float moveSpeed = 2f;
+
+    [Header("Grid Reference")]
+
 
     private Vector3 lastPosition;
     private Quaternion lastRotation;
@@ -28,19 +34,22 @@ public class PawnMovement : MonoBehaviour
 
     [Header("Booster Properties")]
     private string currentBooster = "None";
-
-    public enum PawnType
-    {
-        Normal,
-        Diagonal,
-        Queen
-    }
     #endregion
 
     #region Initialization
     private void Start()
     {
+        originPosition = transform.position;
+
+        originRotation = transform.rotation;
+
         pawnCollider = GetComponent<Collider>();
+
+        if (gridController)
+            cellSize = gridController.cellSize;
+        else
+            Debug.LogError($"Grid Controller in pawn {this.name} not found");
+
 
         GameManager.Instance.AddPawn(this, this.tag);
     }
@@ -52,16 +61,53 @@ public class PawnMovement : MonoBehaviour
         if (!isMoving)
         {
             StoreCurrentState();
-            List<Vector3> path = CalculatePath(transform.position, destination);
-            if (path != null && path.Count > 0)
+
+            if (currentBooster == "BigJump")
             {
-                currentMovement = StartCoroutine(MoveAlongPath(path));
+                currentMovement = StartCoroutine(PerformBigJump(destination));
             }
             else
             {
-                Debug.Log("No valid path found");
+                List<Vector3> path = CalculatePath(transform.position, destination);
+                if (path != null && path.Count > 0)
+                {
+                    currentMovement = StartCoroutine(MoveAlongPath(path));
+                }
+                else
+                {
+                    Debug.Log("No valid path found");
+                }
             }
         }
+    }
+    private IEnumerator PerformBigJump(Vector3 destination)
+    {
+        isMoving = true;
+        pawnCollider.enabled = false;
+
+        Vector3 startPosition = transform.position;
+        float journeyLength = Vector3.Distance(startPosition, destination);
+        float journeyTime = journeyLength / moveSpeed;
+        float elapsedTime = 0f;
+
+        while (elapsedTime < journeyTime)
+        {
+            float t = elapsedTime / journeyTime;
+            float height = Mathf.Sin(t * Mathf.PI) * jumpHeight * (journeyLength / cellSize);
+
+            Vector3 newPosition = Vector3.Lerp(startPosition, destination, t);
+            newPosition.y += height;
+
+            transform.position = newPosition;
+
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+
+        transform.position = destination;
+        isMoving = false;
+        pawnCollider.enabled = true;
+        currentMovement = null;
     }
 
     private IEnumerator MoveAlongPath(List<Vector3> path)
@@ -120,6 +166,8 @@ public class PawnMovement : MonoBehaviour
         int deltaZ = Mathf.RoundToInt(delta.z / cellSize);
         int distance = Mathf.Abs(deltaX) + Mathf.Abs(deltaZ);
 
+        //Debug.Log($"BigJump: distance = {distance} <= movementRnage = {movementRange} + movementBuff {movementBuff} - {distance <= movementRange + movementBuff}");
+
         return distance <= movementRange + movementBuff;
     }
 
@@ -155,39 +203,26 @@ public class PawnMovement : MonoBehaviour
 
     private Vector3 GetNextCellTowards(Vector3 current, Vector3 target)
     {
-        Vector3 direction = target - current;
-        Vector3 nextCell = current;
+        List<Vector3> neighbors = gridController.GetValidNeighbors(current);
+        Vector3 bestNext = current;
+        float minDistance = Vector3.Distance(current, target);
 
-        if (Mathf.Abs(direction.x) >= Mathf.Abs(direction.z))
+        foreach (Vector3 neighbor in neighbors)
         {
-            nextCell.x += Mathf.Sign(direction.x) * cellSize;
-            if (IsCellWalkable(nextCell))
+            float distance = Vector3.Distance(neighbor, target);
+            if (distance < minDistance)
             {
-                return nextCell;
+                minDistance = distance;
+                bestNext = neighbor;
             }
-            nextCell = current;
-            nextCell.z += Mathf.Sign(direction.z) * cellSize;
-        }
-        else
-        {
-            nextCell.z += Mathf.Sign(direction.z) * cellSize;
-            if (IsCellWalkable(nextCell))
-            {
-                return nextCell;
-            }
-            nextCell = current;
-            nextCell.x += Mathf.Sign(direction.x) * cellSize;
         }
 
-        return IsCellWalkable(nextCell) ? nextCell : current;
+        return bestNext;
     }
 
-    private bool IsCellWalkable(Vector3 cellPosition)
+    private bool IsCellWalkable(Vector3 position)
     {
-        CubeController cell = GetCellAtPosition(cellPosition);
-        bool isWalkable = cell != null && cell.isWalkable;
-        Debug.Log($"IsCellWalkable: Position={cellPosition}, IsWalkable={isWalkable}");
-        return isWalkable;
+        return gridController.CellExists(position);
     }
 
     private CubeController GetCellAtPosition(Vector3 position)
@@ -211,35 +246,75 @@ public class PawnMovement : MonoBehaviour
                 currentBooster = "None";
                 break;
         }
+
+        Debug.Log($"Booster: {boosterType} applied");
     }
 
     public List<Vector3> GetValidMoves(Vector3 startPosition)
     {
         List<Vector3> validMoves = new List<Vector3>();
-        int totalMovement = movementRange + movementBuff;
+        int totalRange = movementRange + movementBuff;
 
-        for (int x = -totalMovement; x <= totalMovement; x++)
+        // Use a queue for breadth-first search
+        Queue<Vector3> toExplore = new Queue<Vector3>();
+        HashSet<Vector3> explored = new HashSet<Vector3>();
+
+        toExplore.Enqueue(startPosition);
+        explored.Add(startPosition);
+
+        while (toExplore.Count > 0)
         {
-            for (int z = -totalMovement; z <= totalMovement; z++)
-            {
-                if (Mathf.Abs(x) + Mathf.Abs(z) <= totalMovement) // Manhattan distance check
-                {
-                    Vector3 potentialMove = new Vector3(
-                        startPosition.x + x * cellSize,
-                        startPosition.y,
-                        startPosition.z + z * cellSize
-                    );
+            Vector3 current = toExplore.Dequeue();
+            int currentDistance = CalculateDistance(startPosition, current);
 
-                    if (IsValidMove(startPosition, potentialMove))
+            if (currentDistance < totalRange)
+            {
+                List<Vector3> neighbors = GetNeighbors(current);
+                foreach (Vector3 neighbor in neighbors)
+                {
+                    if (!explored.Contains(neighbor) && gridController.CellExists(neighbor))
                     {
-                        validMoves.Add(potentialMove);
+                        explored.Add(neighbor);
+                        toExplore.Enqueue(neighbor);
+                        validMoves.Add(neighbor);
                     }
                 }
             }
         }
 
-        Debug.Log($"GetValidMoves: StartPosition={startPosition}, ValidMovesCount={validMoves.Count}");
         return validMoves;
+    }
+
+    private List<Vector3> GetNeighbors(Vector3 position)
+    {
+        float cellSize = gridController.cellSize;
+        List<Vector3> neighbors = new List<Vector3>
+        {
+            position + new Vector3(cellSize, 0, 0),   // Right
+            position + new Vector3(-cellSize, 0, 0),  // Left
+            position + new Vector3(0, 0, cellSize),   // Up
+            position + new Vector3(0, 0, -cellSize)   // Down
+        };
+
+        if (canMoveDiagonally)
+        {
+            neighbors.AddRange(new List<Vector3>
+            {
+                position + new Vector3(cellSize, 0, cellSize),    // Top-Right
+                position + new Vector3(-cellSize, 0, cellSize),   // Top-Left
+                position + new Vector3(cellSize, 0, -cellSize),   // Bottom-Right
+                position + new Vector3(-cellSize, 0, -cellSize)   // Bottom-Left
+            });
+        }
+
+        return neighbors;
+    }
+
+    private int CalculateDistance(Vector3 start, Vector3 end)
+    {
+        Vector3 difference = end - start;
+        return Mathf.Abs(Mathf.RoundToInt(difference.x / gridController.cellSize)) +
+               Mathf.Abs(Mathf.RoundToInt(difference.z / gridController.cellSize));
     }
     #endregion
 
@@ -266,6 +341,7 @@ public class PawnMovement : MonoBehaviour
 
     public void UndoMove()
     {
+        Debug.Log($"Undo move by {this.name}");
         Reset();
         // AudioManager.Instance.Play("UndoMove");
     }
@@ -276,15 +352,68 @@ public class PawnMovement : MonoBehaviour
     {
         pawnCollider.enabled = true;
     }
+    public void SelectThisPawn()
+    {
+        pawnCollider.enabled = false;
+    }
+    public void OriginReset(float resetSpeed)
+    {
+        if (currentMovement != null)
+        {
+
+            StopCoroutine(currentMovement);
+
+        }
+
+        currentMovement = StartCoroutine(ResetToOrigin(resetSpeed));
+
+        // AudioManager.Instance.Play("PawnResetStart");
+
+    }
+
+
+
+    private IEnumerator ResetToOrigin(float resetSpeed)
+    {
+        isMoving = true;
+
+        pawnCollider.enabled = false;
+
+        Vector3 startPosition = transform.position;
+
+        Quaternion startRotation = transform.rotation;
+
+        float journeyLength = Vector3.Distance(startPosition, originPosition);
+
+        float startTime = Time.time;
+
+        while (transform.position != originPosition || transform.rotation != originRotation)
+
+        {
+
+            float distanceCovered = (Time.time - startTime) * resetSpeed;
+
+            float fractionOfJourney = distanceCovered / journeyLength;
+
+            transform.position = Vector3.Lerp(startPosition, originPosition, fractionOfJourney);
+
+            transform.rotation = Quaternion.Slerp(startRotation, originRotation, fractionOfJourney);
+
+
+            yield return null;
+        }
+
+        lastPosition = originPosition;
+        lastRotation = originRotation;
+
+        Reset();
+    }
+
+
     public void LookAt(Vector3 target)
     {
         transform.LookAt(target);
         // AudioManager.Instance.Play("PawnRotate");
-    }
-
-    public PawnType GetPawnType()
-    {
-        return pawnType;
     }
 
     public void SetMovementBuff(int buff)

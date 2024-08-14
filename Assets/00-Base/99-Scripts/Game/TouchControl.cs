@@ -8,11 +8,11 @@ public class TouchController : MonoBehaviour
     [SerializeField] private LayerMask pawnLayer;
     [SerializeField] private LayerMask cellLayer;
 
-    [Header("Grid Properties")]
-    [SerializeField] private float cellSize = 1f;
+    [Header("Grid Reference")]
+    [SerializeField] private GridController gridController;
 
     private PawnMovement selectedPawn;
-    private List<CubeController> highlightedCells = new List<CubeController>();
+    private List<Transform> highlightedCells = new List<Transform>();
 
     private Camera mainCamera;
     #endregion
@@ -53,6 +53,7 @@ public class TouchController : MonoBehaviour
         if (pawn != null && !pawn.IsMoving())
         {
             selectedPawn = pawn;
+            selectedPawn.SelectThisPawn();
             HighlightValidMoves();
         }
     }
@@ -65,20 +66,19 @@ public class TouchController : MonoBehaviour
             return;
         }
 
-        Vector3 snappedPosition = SnapToGrid(targetPosition);
-        Debug.Log($"TryMovePawn: TargetPosition={targetPosition}, SnappedPosition={snappedPosition}");
+        targetPosition = gridController.SnapToGrid(targetPosition);
 
-        if (selectedPawn.IsValidMove(selectedPawn.transform.position, snappedPosition))
+        Vector3 currentPosition = selectedPawn.transform.position;
+        if (selectedPawn.IsValidMove(currentPosition, targetPosition))
         {
             Debug.Log("TryMovePawn: Valid move, executing MovePath");
-            selectedPawn.MovePath(snappedPosition);
-
+            selectedPawn.MovePath(targetPosition);
         }
         else
         {
             Debug.Log("TryMovePawn: Invalid move");
         }
-        
+
         ResetPawnSelection();
     }
 
@@ -90,39 +90,9 @@ public class TouchController : MonoBehaviour
         // Optionally, you can add some visual or audio feedback here
         // to indicate that the selection has been reset
     }
-
-    private void MovePawn(Vector3 targetPosition)
-    {
-        PawnMovement occupyingPawn = GetPawnAtPosition(targetPosition);
-
-        if (occupyingPawn != null && occupyingPawn.CompareTag(selectedPawn.tag))
-        {
-            // Friend pawn occupies the target cell
-            Vector3 pushDirection = (occupyingPawn.transform.position - selectedPawn.transform.position).normalized;
-            Vector3 newPosition = occupyingPawn.transform.position + pushDirection * cellSize;
-            
-            occupyingPawn.MovePath(newPosition);
-            
-            if (!IsCellValid(newPosition))
-            {
-                occupyingPawn.GetComponent<Rigidbody>().isKinematic = false;
-            }
-        }
-
-        selectedPawn.MovePath(targetPosition);
-    }
     #endregion
 
     #region Helper Methods
-    private Vector3 SnapToGrid(Vector3 position)
-    {
-        return new Vector3(
-            Mathf.Round(position.x / cellSize) * cellSize,
-            position.y = 0,
-            Mathf.Round(position.z / cellSize) * cellSize
-        );
-    }
-
     private void HighlightValidMoves()
     {
         ClearHighlightedCells();
@@ -138,12 +108,16 @@ public class TouchController : MonoBehaviour
 
         foreach (Vector3 move in validMoves)
         {
-            CubeController cell = GetCellAtPosition(move);
+            Transform cell = gridController.GetCellAtPosition(move);
             if (cell != null)
             {
-                cell.ChangeHighlightVFX(true);
-                highlightedCells.Add(cell);
-                Debug.Log($"Highlighted cell at position: {move}");
+                CubeController cubeController = cell.GetComponent<CubeController>();
+                if (cubeController != null)
+                {
+                    cubeController.ChangeHighlightVFX(true);
+                    highlightedCells.Add(cell);
+                    Debug.Log($"Highlighted cell at position: {move}");
+                }
             }
             else
             {
@@ -154,9 +128,13 @@ public class TouchController : MonoBehaviour
 
     private void ClearHighlightedCells()
     {
-        foreach (CubeController cell in highlightedCells)
+        foreach (Transform cell in highlightedCells)
         {
-            cell.ChangeHighlightVFX(false);
+            CubeController cubeController = cell.GetComponent<CubeController>();
+            if (cubeController != null)
+            {
+                cubeController.ChangeHighlightVFX(false);
+            }
         }
         highlightedCells.Clear();
     }

@@ -8,7 +8,18 @@ public class CubeController : MonoBehaviour
     [SerializeField] ParticleSystem cubeHighlightVFX;
 
     public bool isWalkable = true;
+    #region Activation
+    public void ActivateThisCube()
+    {
+        if (!isWalkable)
+            return;
 
+        this.gameObject.SetActive(isWalkable);
+        this.transform.GetComponentInParent<GridController>().AddNewCell(this.transform);
+    }
+    #endregion
+
+    #region VFX 
     public void ChangeHighlightVFX(bool state)
     {
         if (state)
@@ -32,5 +43,5 @@ public class CubeController : MonoBehaviour
             cubeHighlightVFX.Stop();
         }
     }
-
+    #endregion
 }
