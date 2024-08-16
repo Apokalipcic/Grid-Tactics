@@ -59,6 +59,7 @@ public class TouchController : MonoBehaviour
         {
             selectedPawn = pawn;
             selectedPawn.SelectThisPawn();
+            selectedPawn.CalculateReachableCells();
             HighlightValidMoves();
         }
     }
@@ -77,8 +78,7 @@ public class TouchController : MonoBehaviour
 
         int distance = selectedPawn.CalculateDistance(currentPosition, targetPosition);
 
-        if (selectedPawn.IsValidMove(currentPosition, targetPosition) &&
-            GameManager.Instance.GetAmountOfAvailableActionPoints() >= distance)
+        if (selectedPawn.IsValidMove(targetPosition))
         {
             Debug.Log("TryMovePawn: Valid move, executing MovePath");
             selectedPawn.MovePath(targetPosition);
@@ -113,10 +113,7 @@ public class TouchController : MonoBehaviour
             return;
         }
 
-        int availableActionPoints = GameManager.Instance.GetAmountOfAvailableActionPoints();
-        List<Vector3> validMoves = selectedPawn.GetValidMoves(selectedPawn.transform.position, availableActionPoints);
-        Debug.Log($"HighlightValidMoves: ValidMovesCount={validMoves.Count}");
-
+        List<Vector3> validMoves = selectedPawn.GetValidMoves();
         foreach (Vector3 move in validMoves)
         {
             Transform cell = gridController.GetCellAtPosition(move);
@@ -127,7 +124,7 @@ public class TouchController : MonoBehaviour
                 {
                     cubeController.ChangeHighlightVFX(true);
                     highlightedCells.Add(cell);
-                    Debug.Log($"Highlighted cell at position: {move}");
+                    //Debug.Log($"Highlighted cell at position: {move}");
                 }
             }
             else
@@ -135,6 +132,7 @@ public class TouchController : MonoBehaviour
                 Debug.LogWarning($"No cell found at position: {move}");
             }
         }
+        
     }
 
     private void ClearHighlightedCells()

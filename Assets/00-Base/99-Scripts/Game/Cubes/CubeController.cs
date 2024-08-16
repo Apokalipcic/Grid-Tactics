@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,6 +9,8 @@ public class CubeController : MonoBehaviour
     [SerializeField] ParticleSystem cubeHighlightVFX;
 
     public bool isWalkable = true;
+    private string occupiedByTag = null;
+
     #region Activation
     public void ActivateThisCube()
     {
@@ -16,6 +19,32 @@ public class CubeController : MonoBehaviour
 
         this.gameObject.SetActive(isWalkable);
         this.transform.GetComponentInParent<GridController>().AddNewCell(this.transform);
+    }
+    #endregion
+
+    #region Occupation Methods
+    public void OnOccupy(string tag)
+    {
+        occupiedByTag = tag;
+
+        isWalkable = false;
+    }
+
+    public void OnDeoccupy()
+    {
+        occupiedByTag = null;
+
+        isWalkable = true;
+    }
+
+    public bool IsOccupied()
+    {
+        return occupiedByTag != null;
+    }
+
+    public bool IsOccupiedBy(string tag)
+    {
+        return occupiedByTag == tag;
     }
     #endregion
 

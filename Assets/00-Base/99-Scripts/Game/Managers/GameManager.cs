@@ -50,21 +50,22 @@ public class GameManager : MonoBehaviour
     //[Range(1,5)]
     //[SerializeField] private int maxNeutralActions = 3;
 
-    [Header("Pawns")]
-    private int currentPlayerActions;
-    private int currentEnemyActions;
-    //private int currentNeutralActions;
 
+    //private int currentNeutralActions;
     [Header("Reset Properties")]
     [Range(1,10)]
     [SerializeField] private float resetSpeed = 10;
 
+    [Header("Pawns")]
+    private int currentPlayerActions;
+    private int currentEnemyActions;
     public List<PawnMovement> PlayerPawns { get; private set; } = new List<PawnMovement>();
     public List<PawnMovement> EnemyPawns { get; private set; } = new List<PawnMovement>();
     public List<PawnMovement> NeutralPawns { get; private set; } = new List<PawnMovement>();
 
     [Header("Script References")]
     [SerializeField] UserInterface_Script userInterface;
+    [SerializeField] WinConditionManager winConditionManager;
 
     [Header("Debug")]
     [SerializeField] bool debug = false;
@@ -74,6 +75,9 @@ public class GameManager : MonoBehaviour
     #region Unity Lifecycle
     private void Start()
     {
+        if(!winConditionManager)
+            winConditionManager = GetComponent<WinConditionManager>();
+
         SetupGame();
     }
     #endregion
@@ -232,6 +236,15 @@ public class GameManager : MonoBehaviour
     #endregion
 
     #region Action Point Management
+    public void ReturnActionPoints(int amount)
+    {
+        //Can Return Only Player AP
+        if (CurrentState != GameState.PlayerAction || amount <= 0)
+            return;
+
+        currentPlayerActions += amount;
+        userInterface.SetPlayerActionPonts(currentPlayerActions);
+    }
     public bool UseActionPoint()
     {
         switch (CurrentState)
@@ -358,6 +371,13 @@ public class GameManager : MonoBehaviour
 
     #endregion
 
+    #region Chest Management
+    public void ActivateChest(WinConditionType winCondition)
+    {
+        winConditionManager.UpdateCondition(winCondition);
+    }
+    #endregion
+
     #region UI Management
     private void UpdateUI()
     {
@@ -367,22 +387,18 @@ public class GameManager : MonoBehaviour
     #endregion
 
     #region Win/Lose Condition
-    public void CheckWinCondition()
-    {
-        // Implement win condition logic
-        // If win condition is met, call EndGame(true)
-    }
-
-    public void CheckLoseCondition()
-    {
-        // Implement lose condition logic
-        // If lose condition is met, call EndGame(false)
-    }
-
-    private void EndGame(bool playerWon)
+    public void EndGame(bool playerWon)
     {
         CurrentState = GameState.GameOver;
-        // Implement game over logic (e.g., show win/lose screen)
+        
+        if (playerWon)
+        {
+            userInterface.CallWinScreen();
+        }
+        else
+        {
+            userInterface.CallLoseScreen();
+        }
     }
     #endregion
 

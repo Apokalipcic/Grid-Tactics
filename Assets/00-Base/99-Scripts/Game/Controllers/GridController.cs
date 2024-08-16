@@ -50,18 +50,43 @@ public class GridController : MonoBehaviour
         return cellDictionary.ContainsKey(gridPosition);
     }
 
-    public List<Vector3> GetValidNeighbors(Vector3 worldPosition)
+    public List<Vector3> GetValidNeighbors(Vector3 worldPosition, bool allowDiagonal)
     {
         List<Vector3> neighbors = new List<Vector3>();
         Vector3 gridPosition = SnapToGrid(worldPosition);
 
-        for (int x = -1; x <= 1; x++)
+        // Orthogonal directions
+        Vector3[] orthogonalDirections = new Vector3[]
         {
-            for (int z = -1; z <= 1; z++)
-            {
-                if (x == 0 && z == 0) continue; // Skip the current cell
+            new Vector3(cellSize, 0, 0),   // Right
+            new Vector3(-cellSize, 0, 0),  // Left
+            new Vector3(0, 0, cellSize),   // Up
+            new Vector3(0, 0, -cellSize)   // Down
+        };
 
-                Vector3 neighborPosition = gridPosition + new Vector3(x * cellSize, 0, z * cellSize);
+        foreach (Vector3 direction in orthogonalDirections)
+        {
+            Vector3 neighborPosition = gridPosition + direction;
+            if (CellExists(neighborPosition))
+            {
+                neighbors.Add(neighborPosition);
+            }
+        }
+
+        // New: Diagonal directions (only if allowed)
+        if (allowDiagonal)
+        {
+            Vector3[] diagonalDirections = new Vector3[]
+            {
+                new Vector3(cellSize, 0, cellSize),    // Top-Right
+                new Vector3(-cellSize, 0, cellSize),   // Top-Left
+                new Vector3(cellSize, 0, -cellSize),   // Bottom-Right
+                new Vector3(-cellSize, 0, -cellSize)   // Bottom-Left
+            };
+
+            foreach (Vector3 direction in diagonalDirections)
+            {
+                Vector3 neighborPosition = gridPosition + direction;
                 if (CellExists(neighborPosition))
                 {
                     neighbors.Add(neighborPosition);

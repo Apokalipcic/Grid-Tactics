@@ -21,7 +21,7 @@ public class PawnMovement : MonoBehaviour
     [SerializeField] private float jumpHeight = 0.5f;
     [SerializeField] private float moveSpeed = 2f;
 
-
+    private int amountOfActionPointsUsed = 0;
     private Vector3 lastPosition;
     private Quaternion lastRotation;
     private Vector3 originPosition;
@@ -29,6 +29,9 @@ public class PawnMovement : MonoBehaviour
     private bool isMoving = false;
     private Coroutine currentMovement;
     private Collider pawnCollider;
+    private AStarPathfinder pathfinder;
+    private Dictionary<Vector3, List<Vector3>> cachedPaths;
+    private bool moved = false;
 
     [Header("Booster Properties")]
     private string currentBooster = "None";
@@ -50,33 +53,62 @@ public class PawnMovement : MonoBehaviour
 
 
         GameManager.Instance.AddPawn(this, this.tag);
+        pathfinder = new AStarPathfinder(gridController, this);
     }
     #endregion
 
     #region Movement Methods
+    public void CalculateReachableCells()
+    {
+        int maxDistance = Mathf.Min(movementRange + movementBuff, GameManager.Instance.GetAmountOfAvailableActionPoints());
+        cachedPaths = pathfinder.FindAllReachableCells(transform.position, maxDistance);
+    }
+    public List<Vector3> GetValidMoves()
+    {
+        if (cachedPaths == null)
+        {
+            CalculateReachableCells();
+        }
+        return new List<Vector3>(cachedPaths.Keys);
+    }
     public void MovePath(Vector3 destination)
     {
-        if (!isMoving)
+        if (isMoving)
         {
-            StoreCurrentState();
-
-            if (currentBooster == "BigJump")
-            {
-                currentMovement = StartCoroutine(PerformBigJump(destination));
-            }
-            else
-            {
-                List<Vector3> path = CalculatePath(transform.position, destination);
-                if (path != null && path.Count > 0)
-                {
-                    currentMovement = StartCoroutine(MoveAlongPath(path));
-                }
-                else
-                {
-                    Debug.Log("No valid path found");
-                }
-            }
+            Debug.LogWarning("Cannot move: Pawn is already moving.");
+            return;
         }
+
+        if (cachedPaths == null || !cachedPaths.ContainsKey(destination))
+        {
+            Debug.LogError("Invalid move: Path not found in cached paths");
+            return;
+        }
+
+        StoreCurrentState();
+        moved = true;
+        amountOfActionPointsUsed = 0;
+
+        if (currentBooster == "BigJump")
+        {
+            if (currentMovement != null)
+            {
+                StopCoroutine(currentMovement);
+            }
+            currentMovement = StartCoroutine(PerformBigJump(destination));
+        }
+        else
+        {
+            List<Vector3> path = cachedPaths[destination];
+            if (currentMovement != null)
+            {
+                StopCoroutine(currentMovement);
+            }
+            currentMovement = StartCoroutine(MoveAlongPath(path));
+        }
+
+        // Clear the cache after starting movement
+        cachedPaths = null;
     }
     private IEnumerator PerformBigJump(Vector3 destination)
     {
@@ -109,12 +141,15 @@ public class PawnMovement : MonoBehaviour
         
         //Only one point for big jump
         GameManager.Instance.UseActionPoint();
+        amountOfActionPointsUsed++;
     }
 
     private IEnumerator MoveAlongPath(List<Vector3> path)
     {
         isMoving = true;
         pawnCollider.enabled = false;
+
+        bool isFirstStep = true;
 
         foreach (Vector3 cellPosition in path)
         {
@@ -139,8 +174,13 @@ public class PawnMovement : MonoBehaviour
 
             transform.position = cellPosition;
 
-            //Every Step consumes Action Point
-            GameManager.Instance.UseActionPoint();
+            // Consume Action Point, but not for the first step
+            if (!isFirstStep)
+            {
+                GameManager.Instance.UseActionPoint();
+                amountOfActionPointsUsed++;
+            }
+            isFirstStep = false;
         }
 
         isMoving = false;
@@ -208,7 +248,7 @@ public class PawnMovement : MonoBehaviour
 
     private Vector3 GetNextCellTowards(Vector3 current, Vector3 target)
     {
-        List<Vector3> neighbors = gridController.GetValidNeighbors(current);
+        List<Vector3> neighbors = gridController.GetValidNeighbors(current, canMoveDiagonally);
         Vector3 bestNext = current;
         float minDistance = Vector3.Distance(current, target);
 
@@ -332,6 +372,9 @@ public class PawnMovement : MonoBehaviour
 
     public void Reset()
     {
+        if (!moved)
+            return;
+
         if (currentMovement != null)
         {
             StopCoroutine(currentMovement);
@@ -339,8 +382,11 @@ public class PawnMovement : MonoBehaviour
         transform.position = lastPosition;
         transform.rotation = lastRotation;
         isMoving = false;
+        moved = false;
         pawnCollider.enabled = true;
         currentMovement = null;
+        GameManager.Instance.ReturnActionPoints(amountOfActionPointsUsed);
+        amountOfActionPointsUsed = 0;
         // AudioManager.Instance.Play("PawnReset");
     }
 
@@ -353,6 +399,14 @@ public class PawnMovement : MonoBehaviour
     #endregion
 
     #region Helper Methods
+    public bool CanMoveDiagonally()
+    {
+        return canMoveDiagonally;
+    }
+    public bool IsValidMove(Vector3 endPosition)
+    {
+        return cachedPaths != null && cachedPaths.ContainsKey(endPosition);
+    }
     public void DeselectThisPawn()
     {
         pawnCollider.enabled = true;

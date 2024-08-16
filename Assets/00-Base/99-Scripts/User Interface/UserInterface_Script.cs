@@ -57,6 +57,18 @@ public class UserInterface_Script : MonoBehaviour
 
     #endregion
 
+    #region Windows
+    public void CallWinScreen()
+    {
+
+    }
+
+    public void CallLoseScreen()
+    {
+
+    }
+    #endregion
+
     #region Debug
 
     private void OnDebug(string message)
