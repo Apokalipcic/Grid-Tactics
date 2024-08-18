@@ -23,7 +23,7 @@ public class PawnMovement : MonoBehaviour, IPushable
 
     [Header("Pushing Properties")]
     [SerializeField] private bool canPush = true;
-    [SerializeField] private bool canChainPush = true;  // New variable to toggle chain pushing
+    [SerializeField] private bool canChainPush = true;
     [SerializeField] private float pushSpeed = 2f;
 
     private bool isPushing = false;
@@ -38,6 +38,7 @@ public class PawnMovement : MonoBehaviour, IPushable
     private Collider pawnCollider;
     private AStarPathfinder pathfinder;
     private Dictionary<Vector3, List<Vector3>> cachedPaths;
+    private HashSet<Vector3> pushableMoves;
     private bool moved = false;
 
     [Header("Booster Properties")]
@@ -48,8 +49,9 @@ public class PawnMovement : MonoBehaviour, IPushable
     private void Start()
     {
         originPosition = transform.position;
-
         originRotation = transform.rotation;
+
+        pushSpeed = moveSpeed;
 
         pawnCollider = GetComponent<Collider>();
 
@@ -57,7 +59,6 @@ public class PawnMovement : MonoBehaviour, IPushable
             cellSize = gridController.cellSize;
         else
             Debug.LogError($"Grid Controller in pawn {this.name} not found");
-
 
         GameManager.Instance.AddPawn(this, this.tag);
         pathfinder = new AStarPathfinder(gridController, this);
@@ -69,33 +70,44 @@ public class PawnMovement : MonoBehaviour, IPushable
     {
         int maxDistance = Mathf.Min(movementRange + movementBuff, GameManager.Instance.GetAmountOfAvailableActionPoints());
         cachedPaths = pathfinder.FindAllReachableCells(transform.position, maxDistance);
+        pushableMoves = new HashSet<Vector3>(GetPushMoves());
     }
+
+
     public List<Vector3> GetValidMoves()
     {
-        if (cachedPaths == null)
+        if (cachedPaths == null || pushableMoves == null)
         {
             CalculateReachableCells();
         }
 
         List<Vector3> validMoves = new List<Vector3>(cachedPaths.Keys);
-
-        // Add potential push moves
-        List<Vector3> pushMoves = GetPushMoves();
-        foreach (Vector3 pushMove in pushMoves)
-        {
-            if (!validMoves.Contains(pushMove))
-            {
-                validMoves.Add(pushMove);
-            }
-        }
-
+        validMoves.AddRange(pushableMoves);
         return validMoves;
     }
+
     public void MovePath(Vector3 destination)
     {
         if (isMoving || isPushing)
         {
             Debug.LogWarning("Cannot move: Pawn is already moving.");
+            return;
+        }
+
+        if (pushableMoves.Contains(destination))
+        {
+            Vector3 direction = (destination - transform.position).normalized;
+            if (TryPush(direction))
+            {
+                StoreCurrentState();
+                moved = true;
+                amountOfActionPointsUsed = 1; // Pushing always costs 1 action point
+                GameManager.Instance.UseActionPoint();
+            }
+            else
+            {
+                Debug.LogWarning("Push failed.");
+            }
             return;
         }
 
@@ -105,80 +117,20 @@ public class PawnMovement : MonoBehaviour, IPushable
             return;
         }
 
-        Vector3 direction = (destination - transform.position).normalized;
-
-        bool pushed = false;
-
-        // Check if this is a push move
-        if (CanPushChain(direction))
-        {
-            pushed = TryPush(direction);
-        }
-
-
         StoreCurrentState();
         moved = true;
         amountOfActionPointsUsed = 0;
 
-        if (currentBooster == "BigJump")
+        List<Vector3> path = cachedPaths[destination];
+        if (currentMovement != null)
         {
-            if (currentMovement != null)
-            {
-                StopCoroutine(currentMovement);
-            }
-            currentMovement = StartCoroutine(PerformBigJump(destination));
+            StopCoroutine(currentMovement);
         }
-        else
-        {
-            List<Vector3> path = cachedPaths[destination];
-            if (currentMovement != null)
-            {
-                StopCoroutine(currentMovement);
-            }
-            currentMovement = StartCoroutine(MoveAlongPath(path));
-        }
+        currentMovement = StartCoroutine(MoveAlongPath(path));
 
         // Clear the cache after starting movement
         cachedPaths = null;
-    }
-    private IEnumerator PerformBigJump(Vector3 destination)
-    {
-        isMoving = true;
-        pawnCollider.enabled = false;
-
-        // Deoccupy the starting position
-        UpdateCubeOccupation(transform.position, false);
-
-        Vector3 startPosition = transform.position;
-        float journeyLength = Vector3.Distance(startPosition, destination);
-        float journeyTime = journeyLength / moveSpeed;
-        float elapsedTime = 0f;
-
-        while (elapsedTime < journeyTime)
-        {
-            float t = elapsedTime / journeyTime;
-            float height = Mathf.Sin(t * Mathf.PI) * jumpHeight * (journeyLength / cellSize);
-
-            Vector3 newPosition = Vector3.Lerp(startPosition, destination, t);
-            newPosition.y += height;
-
-            transform.position = newPosition;
-
-            elapsedTime += Time.deltaTime;
-            yield return null;
-        }
-
-        transform.position = destination;
-        isMoving = false;
-        pawnCollider.enabled = true;
-        currentMovement = null;
-
-        // Occupy the new position
-        UpdateCubeOccupation(destination, true);
-
-        // Only one point for big jump
-        GameManager.Instance.UseActionPoint();
-        amountOfActionPointsUsed++;
+        pushableMoves = null;
     }
 
     private IEnumerator MoveAlongPath(List<Vector3> path)
@@ -190,8 +142,6 @@ public class PawnMovement : MonoBehaviour, IPushable
         UpdateCubeOccupation(transform.position, false);
 
         bool isFirstStep = true;
-
-        Vector3 lastPosition = transform.position;
 
         foreach (Vector3 cellPosition in path)
         {
@@ -216,8 +166,6 @@ public class PawnMovement : MonoBehaviour, IPushable
 
             transform.position = cellPosition;
 
-            lastPosition = cellPosition;
-
             // Consume Action Point, but not for the first step
             if (!isFirstStep)
             {
@@ -226,14 +174,15 @@ public class PawnMovement : MonoBehaviour, IPushable
             }
             isFirstStep = false;
         }
-        
+
         // Occupy the new position
-        UpdateCubeOccupation(lastPosition, true);
+        UpdateCubeOccupation(transform.position, true);
 
         isMoving = false;
         pawnCollider.enabled = true;
         currentMovement = null;
     }
+
     private void UpdateCubeOccupation(Vector3 position, bool occupy)
     {
         CubeController cube = gridController.GetCellAtPosition(position)?.GetComponent<CubeController>();
@@ -249,153 +198,128 @@ public class PawnMovement : MonoBehaviour, IPushable
             }
         }
         else
-            Debug.Log($"Cannot Update Cube Occupation, because cube doesn't exists on {position}");
-    }
-
-    public void ApplyBooster(string boosterType)
-    {
-        currentBooster = boosterType;
-        switch (boosterType)
         {
-            case "BigJump":
-                // Big Jump is now handled in IsValidMove
-                break;
-            // Add other booster types here
-            default:
-                currentBooster = "None";
-                break;
+            Debug.LogWarning($"Cannot Update Cube Occupation, because cube doesn't exist at {position}");
         }
-
-        Debug.Log($"Booster: {boosterType} applied");
-    }
-
-    public int CalculateDistance(Vector3 start, Vector3 end)
-    {
-        Vector3 difference = end - start;
-        return Mathf.Abs(Mathf.RoundToInt(difference.x / gridController.cellSize)) +
-               Mathf.Abs(Mathf.RoundToInt(difference.z / gridController.cellSize));
     }
     #endregion
 
-    #region State Management
-    private void StoreCurrentState()
+    #region Pushing Methods
+    public bool CanPushChain(Vector3 direction)
     {
-        lastPosition = transform.position;
-        lastRotation = transform.rotation;
-    }
+        if (!canPush) return false;
 
-    public void Reset()
-    {
-        if (!moved)
-            return;
+        Vector3 currentPosition = transform.position;
+        HashSet<IPushable> pushedObjects = new HashSet<IPushable>();
 
-        if (currentMovement != null)
+        while (true)
         {
-            StopCoroutine(currentMovement);
+            Vector3 nextPosition = currentPosition + direction * cellSize;
+            if (!gridController.CellExists(nextPosition)) return true; // Can push off grid
+
+            CubeController nextCube = gridController.GetCellAtPosition(nextPosition)?.GetComponent<CubeController>();
+            if (nextCube == null) return false;
+
+            if (!nextCube.IsOccupied()) return true;
+            //if (!nextCube.isWalkable) return false //TODO: I'm not sure I need this
+
+
+            GameObject occupant = nextCube.GetOccupant();
+            // Check if the occupant is Neutral or has the same tag as the pushing pawn
+            if (occupant.CompareTag("Neutral") || occupant.CompareTag(this.gameObject.tag))
+            {
+                IPushable nextPushable = occupant.GetComponent<IPushable>();
+
+                if (nextPushable == null) return false;
+
+                if (pushedObjects.Contains(nextPushable)) return false;
+
+                if (!nextPushable.CanBePushed(direction)) return false;
+
+                pushedObjects.Add(nextPushable);
+
+                if (!canChainPush) return true; // If chain pushing is disabled, stop after checking the first object
+
+                currentPosition = nextPosition;
+            }
+            else
+            {
+                return false; // Cannot push objects that are not Neutral or the same tag
+            }
         }
-        transform.position = lastPosition;
-        transform.rotation = lastRotation;
-        isMoving = false;
-        moved = false;
-        pawnCollider.enabled = true;
-        currentMovement = null;
-        GameManager.Instance.ReturnActionPoints(amountOfActionPointsUsed);
-        amountOfActionPointsUsed = 0;
-        // AudioManager.Instance.Play("PawnReset");
     }
 
-    public void UndoMove()
+    public bool TryPush(Vector3 direction)
     {
-        Debug.Log($"Undo move by {this.name}");
-        Reset();
-        // AudioManager.Instance.Play("UndoMove");
-    }
-    #endregion
+        if (!canPush || isMoving || isPushing) return false;
 
-    #region Helper Methods
-    public bool CanMoveDiagonally()
-    {
-        return canMoveDiagonally;
-    }
-    public bool IsValidMove(Vector3 endPosition)
-    {
-        return cachedPaths != null && cachedPaths.ContainsKey(endPosition);
-    }
-    //public void DeselectThisPawn()
-    //{
-    //    pawnCollider.enabled = true;
-    //}
-    //public void SelectThisPawn()
-    //{
-    //    pawnCollider.enabled = false;
-    //}
-    public void OriginReset(float resetSpeed)
-    {
-        if (currentMovement != null)
+        if (!CanPushChain(direction)) return false;
+
+        Vector3 currentPosition = transform.position;
+        List<IPushable> objectsToPush = new List<IPushable>();
+
+        while (true)
         {
+            Vector3 nextPosition = currentPosition + direction * cellSize;
+            CubeController nextCube = gridController.GetCellAtPosition(nextPosition)?.GetComponent<CubeController>();
 
-            StopCoroutine(currentMovement);
+            //if (nextCube == null || !nextCube.isWalkable) break;
+            if (nextCube == null) break;
+            if (!nextCube.IsOccupied()) break;
 
-        }
+            GameObject occupant = nextCube.GetOccupant();
+            IPushable nextPushable = occupant.GetComponent<IPushable>();
 
-        currentMovement = StartCoroutine(ResetToOrigin(resetSpeed));
+            if (nextPushable == null) break;
 
-        // AudioManager.Instance.Play("PawnResetStart");
+            objectsToPush.Add(nextPushable);
 
-    }
+            if (!canChainPush) break;
 
-
-
-    private IEnumerator ResetToOrigin(float resetSpeed)
-    {
-        isMoving = true;
-
-        pawnCollider.enabled = false;
-
-        Vector3 startPosition = transform.position;
-
-        Quaternion startRotation = transform.rotation;
-
-        float journeyLength = Vector3.Distance(startPosition, originPosition);
-
-        float startTime = Time.time;
-
-        while (transform.position != originPosition || transform.rotation != originRotation)
-
-        {
-
-            float distanceCovered = (Time.time - startTime) * resetSpeed;
-
-            float fractionOfJourney = distanceCovered / journeyLength;
-
-            transform.position = Vector3.Lerp(startPosition, originPosition, fractionOfJourney);
-
-            transform.rotation = Quaternion.Slerp(startRotation, originRotation, fractionOfJourney);
-
-
-            yield return null;
+            currentPosition = nextPosition;
         }
 
-        lastPosition = originPosition;
-        lastRotation = originRotation;
+        // Push objects in reverse order
+        for (int i = objectsToPush.Count - 1; i >= 0; i--)
+        {
+            objectsToPush[i].Push(direction);
+        }
 
-        Reset();
-    }
-    public void SetMovementBuff(int buff)
-    {
-        movementBuff = Mathf.Max(0, buff);
+        return true;
     }
 
-    public bool IsMoving()
+    public List<Vector3> GetPushMoves()
     {
-        return isMoving;
+        List<Vector3> pushMoves = new List<Vector3>();
+        Vector3 currentPosition = transform.position;
+
+        Vector3[] directions = new Vector3[]
+        {
+        Vector3.forward,
+        Vector3.back,
+        Vector3.left,
+        Vector3.right
+        };
+
+        foreach (Vector3 direction in directions)
+        {
+            Vector3 pushPosition = currentPosition + direction * cellSize;
+            CubeController nextCube = gridController.GetCellAtPosition(pushPosition)?.GetComponent<CubeController>();
+
+            // Only consider it a push move if the cell is occupied and can be pushed
+            if (nextCube != null && nextCube.IsOccupied() && CanPushChain(direction))
+            {
+                pushMoves.Add(pushPosition);
+            }
+        }
+
+        return pushMoves;
     }
     #endregion
 
     #region IPushable Implementation
     public bool CanBePushed(Vector3 direction)
     {
-        // Check if there's a valid cell or empty space in the push direction
         Vector3 targetPosition = transform.position + direction * cellSize;
         return gridController.CellExists(targetPosition) || GameManager.Instance.GetPawnAtPosition(targetPosition) == null;
     }
@@ -405,14 +329,11 @@ public class PawnMovement : MonoBehaviour, IPushable
         Vector3 targetPosition = transform.position + direction * cellSize;
         StartCoroutine(PushCoroutine(targetPosition));
     }
-    #endregion
 
-    #region Pushing Methods
     private IEnumerator PushCoroutine(Vector3 targetPosition)
     {
         isPushing = true;
 
-        // Deoccupy the starting position
         UpdateCubeOccupation(transform.position, false);
 
         Vector3 startPosition = transform.position;
@@ -429,147 +350,114 @@ public class PawnMovement : MonoBehaviour, IPushable
 
         transform.position = targetPosition;
 
-        // Occupy the new position
         UpdateCubeOccupation(targetPosition, true);
 
         isPushing = false;
 
-        // Check if the pawn is now off the grid
         if (!gridController.CellExists(targetPosition))
         {
-            // Handle pawn being pushed off the grid
             HandlePushedOffGrid();
         }
     }
 
     private void HandlePushedOffGrid()
     {
-        // Implement logic for when a pawn is pushed off the grid
         GameManager.Instance.RemovePawn(this);
-        //Destroy(gameObject);
         GetComponent<Rigidbody>().isKinematic = false;
+        Debug.Log($"Pawn {this.name} was pushed off the grid");
+    }
+    #endregion
 
-        Debug.Log($"Pawn {this.name} was pushed out of cliff");
+    #region Helper Methods
+    public bool CanMoveDiagonally()
+    {
+        return canMoveDiagonally;
     }
 
-    public bool CanPushChain(Vector3 direction)
+    public bool IsValidMove(Vector3 endPosition)
     {
-        if (!canChainPush)
+        if (cachedPaths == null || pushableMoves == null)
         {
-            // If chain pushing is disabled, check only the immediate next object
-            Vector3 nextPosition = transform.position + direction * cellSize;
-            if (!gridController.CellExists(nextPosition)) return true; // Can push off grid
-            IPushable nextPushable = GetPushableAtPosition(nextPosition);
-            return nextPushable == null || nextPushable.CanBePushed(direction);
+            CalculateReachableCells();
         }
-
-        Vector3 currentPosition = transform.position;
-        HashSet<IPushable> pushedObjects = new HashSet<IPushable>();
-
-        while (true)
-        {
-            Vector3 nextPosition = currentPosition + direction * cellSize;
-            if (!gridController.CellExists(nextPosition)) return true; // Can push off grid
-
-            IPushable nextPushable = GetPushableAtPosition(nextPosition);
-
-            if (nextPushable == null)
-            {
-                return true;
-            }
-
-            if (pushedObjects.Contains(nextPushable))
-            {
-                return false;
-            }
-
-            if (!nextPushable.CanBePushed(direction))
-            {
-                return false;
-            }
-
-            pushedObjects.Add(nextPushable);
-            currentPosition = nextPosition;
-        }
+        return cachedPaths.ContainsKey(endPosition) || pushableMoves.Contains(endPosition);
     }
 
-    public bool TryPush(Vector3 direction)
+    public void OriginReset(float resetSpeed)
     {
-        if (!canPush || isMoving || isPushing) return false;
-
-        if (!CanPushChain(direction)) return false;
-
-        if (canChainPush)
+        if (currentMovement != null)
         {
-            // Execute chain push
-            Vector3 currentPosition = transform.position;
-            while (true)
-            {
-                Vector3 nextPosition = currentPosition + direction * cellSize;
-                IPushable nextPushable = GetPushableAtPosition(nextPosition);
-
-                if (nextPushable == null)
-                {
-                    break;
-                }
-
-                nextPushable.Push(direction);
-                currentPosition = nextPosition;
-            }
-        }
-        else
-        {
-            // Execute single-object push
-            Vector3 nextPosition = transform.position + direction * cellSize;
-            IPushable nextPushable = GetPushableAtPosition(nextPosition);
-            if (nextPushable != null)
-            {
-                //TODO: NOW is to change the push that it occupies new cell
-                nextPushable.Push(direction);
-            }
+            StopCoroutine(currentMovement);
         }
 
-        return true;
+        currentMovement = StartCoroutine(ResetToOrigin(resetSpeed));
     }
 
-    private IPushable GetPushableAtPosition(Vector3 position)
+    private IEnumerator ResetToOrigin(float resetSpeed)
     {
-        // Check if there's a cell at the position
-        CubeController targetCube = gridController.GetCellAtPosition(position)?.GetComponent<CubeController>();
-        if (targetCube != null && targetCube.IsOccupied())
+        isMoving = true;
+        pawnCollider.enabled = false;
+
+        Vector3 startPosition = transform.position;
+        Quaternion startRotation = transform.rotation;
+        float journeyLength = Vector3.Distance(startPosition, originPosition);
+        float startTime = Time.time;
+
+        while (transform.position != originPosition || transform.rotation != originRotation)
         {
-            return targetCube.GetOccupant().GetComponent<IPushable>();
+            float distanceCovered = (Time.time - startTime) * resetSpeed;
+            float fractionOfJourney = distanceCovered / journeyLength;
+
+            transform.position = Vector3.Lerp(startPosition, originPosition, fractionOfJourney);
+            transform.rotation = Quaternion.Slerp(startRotation, originRotation, fractionOfJourney);
+
+            yield return null;
         }
 
-        // If there's no cell or the cell is not occupied, check if there's a pawn at the position
-        PawnMovement pawn = GameManager.Instance.GetPawnAtPosition(position);
-        return pawn as IPushable;
+        lastPosition = originPosition;
+        lastRotation = originRotation;
+
+        Reset();
     }
 
-    private List<Vector3> GetPushMoves()
+    public void SetMovementBuff(int buff)
     {
-        List<Vector3> pushMoves = new List<Vector3>();
-        Vector3 currentPosition = transform.position;
+        movementBuff = Mathf.Max(0, buff);
+    }
 
-        // Define possible push directions
-        Vector3[] directions = new Vector3[]
-        {
-        Vector3.forward,
-        Vector3.back,
-        Vector3.left,
-        Vector3.right
-        };
+    public bool IsMoving()
+    {
+        return isMoving;
+    }
 
-        foreach (Vector3 direction in directions)
+    private void StoreCurrentState()
+    {
+        lastPosition = transform.position;
+        lastRotation = transform.rotation;
+    }
+
+    public void Reset()
+    {
+        if (!moved) return;
+
+        if (currentMovement != null)
         {
-            Vector3 pushPosition = currentPosition + direction * cellSize;
-            if (CanPushChain(direction))
-            {
-                pushMoves.Add(pushPosition);
-            }
+            StopCoroutine(currentMovement);
         }
+        transform.position = lastPosition;
+        transform.rotation = lastRotation;
+        isMoving = false;
+        moved = false;
+        pawnCollider.enabled = true;
+        currentMovement = null;
+        GameManager.Instance.ReturnActionPoints(amountOfActionPointsUsed);
+        amountOfActionPointsUsed = 0;
+    }
 
-        return pushMoves;
+    public void UndoMove()
+    {
+        Debug.Log($"Undo move by {this.name}");
+        Reset();
     }
     #endregion
 }

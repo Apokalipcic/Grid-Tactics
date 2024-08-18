@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 2
   tags:
   - Enemy
+  - Missile
+  - FxTemporaire
+  - Neutral
   layers:
   - Default
   - TransparentFX

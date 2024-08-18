@@ -38,7 +38,7 @@ public class AStarPathfinder
             {
                 if (closedSet.Contains(neighbor.Position)) continue;
 
-                int newCostToNeighbor = currentNode.GCost + 1;
+                int newCostToNeighbor = currentNode.GCost + GetMoveCost(currentNode.Position, neighbor.Position);
 
                 if (newCostToNeighbor > maxDistance) continue;
 
@@ -76,13 +76,60 @@ public class AStarPathfinder
 
     private IEnumerable<PathNode> GetNeighbors(PathNode node)
     {
-        return gridController.GetValidNeighbors(node.Position, pawnMovement.CanMoveDiagonally())
-            .Select(pos => new PathNode { Position = pos });
+        List<Vector3> neighborPositions = gridController.GetValidNeighbors(node.Position, pawnMovement.CanMoveDiagonally());
+
+        foreach (Vector3 pos in neighborPositions)
+        {
+            if (IsValidMove(node.Position, pos))
+            {
+                yield return new PathNode { Position = pos };
+            }
+        }
+    }
+
+    private bool IsValidMove(Vector3 from, Vector3 to)
+    {
+        CubeController toCube = gridController.GetCellAtPosition(to)?.GetComponent<CubeController>();
+
+        if (toCube == null) return false;
+
+        if (!toCube.isWalkable) return false;
+
+        if (toCube.IsOccupied())
+        {
+            GameObject occupant = toCube.GetOccupant();
+            // Consider occupied cells as invalid moves for pathfinding
+            return false;
+        }
+
+        return true;
+    }
+
+    private int GetMoveCost(Vector3 from, Vector3 to)
+    {
+        CubeController toCube = gridController.GetCellAtPosition(to)?.GetComponent<CubeController>();
+        if (toCube != null && toCube.IsOccupied())
+        {
+            // Higher cost for push moves
+            return 2;
+        }
+        return 1;
     }
 
     private int GetDistance(Vector3 a, Vector3 b)
     {
         return Mathf.RoundToInt(Vector3.Distance(a, b) / gridController.cellSize);
+    }
+
+    private Vector3[] GetPushDirections()
+    {
+        return new Vector3[]
+        {
+            Vector3.forward,
+            Vector3.back,
+            Vector3.left,
+            Vector3.right
+        };
     }
     #endregion
 
@@ -99,7 +146,11 @@ public class AStarPathfinder
         {
             var currentNode = openSet.OrderBy(n => n.GCost).First();
 
-            if (currentNode.GCost > maxDistance) continue;
+            if (currentNode.GCost > maxDistance)
+            {
+                openSet.Remove(currentNode);
+                continue;
+            }
 
             openSet.Remove(currentNode);
             closedSet.Add(currentNode.Position);
@@ -110,7 +161,7 @@ public class AStarPathfinder
             {
                 if (closedSet.Contains(neighbor.Position)) continue;
 
-                int newCostToNeighbor = currentNode.GCost + 1;
+                int newCostToNeighbor = currentNode.GCost + GetMoveCost(currentNode.Position, neighbor.Position);
 
                 if (newCostToNeighbor > maxDistance) continue;
 
@@ -139,6 +190,7 @@ public class AStarPathfinder
         public int HCost;
         public int FCost => GCost + HCost;
         public PathNode Parent;
+        public bool IsPushMove;
     }
     #endregion
 }

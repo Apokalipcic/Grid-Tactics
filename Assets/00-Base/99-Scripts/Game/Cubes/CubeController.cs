@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices.WindowsRuntime;
 using UnityEngine;
+using static UnityEngine.ParticleSystem;
 
 public class CubeController : MonoBehaviour
 {
@@ -17,6 +18,7 @@ public class CubeController : MonoBehaviour
 
     public bool isWalkable = true;
 
+    private ParticleSystem.MainModule mainModule;
 
     #region Activation
 
@@ -28,6 +30,8 @@ public class CubeController : MonoBehaviour
     {
         if (!activateThisObject)
             return;
+
+        mainModule = cubeHighlightVFX.main;
 
         this.gameObject.SetActive(true);
         this.transform.GetComponentInParent<GridController>().AddNewCell(this.transform);
@@ -73,10 +77,14 @@ public class CubeController : MonoBehaviour
     #endregion
 
     #region VFX 
-    public void ChangeHighlightVFX(bool state)
+    public void ChangeHighlightVFX(bool state, Color? color = null)
     {
         if (state)
         {
+            if (color.HasValue)
+            {
+                mainModule.startColor = color.Value;
+            }
             cubeHighlightVFX.Play();
         }
         else

@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEditor.Recorder.Input;
 
 public class TouchController : MonoBehaviour
 {
@@ -11,8 +12,12 @@ public class TouchController : MonoBehaviour
     [Header("Grid Reference")]
     [SerializeField] private GridController gridController;
 
+    [Header("Highlighting")]
+    [SerializeField] private Color regularMoveColor = Color.blue;
+    [SerializeField] private Color pushMoveColor = Color.red;
+
     private PawnMovement selectedPawn;
-    private List<Transform> highlightedCells = new List<Transform>();
+    private Dictionary<Transform, Color> highlightedCells = new Dictionary<Transform, Color>();
 
     private Camera mainCamera;
     #endregion
@@ -57,9 +62,8 @@ public class TouchController : MonoBehaviour
     {
         if (pawn != null && !pawn.IsMoving() && pawn.CompareTag("Player"))
         {
-            selectedPawn = pawn;
-            //selectedPawn.SelectThisPawn();
             GameManager.Instance.SetAllPlayerPawnCollider(false);
+            selectedPawn = pawn;
             selectedPawn.CalculateReachableCells();
             HighlightValidMoves();
         }
@@ -74,10 +78,6 @@ public class TouchController : MonoBehaviour
         }
 
         targetPosition = gridController.SnapToGrid(targetPosition);
-
-        Vector3 currentPosition = selectedPawn.transform.position;
-
-        int distance = selectedPawn.CalculateDistance(currentPosition, targetPosition);
 
         if (selectedPawn.IsValidMove(targetPosition))
         {
@@ -95,11 +95,8 @@ public class TouchController : MonoBehaviour
     private void ResetPawnSelection()
     {
         ClearHighlightedCells();
-        if (selectedPawn != null)
-        {
-            GameManager.Instance.SetAllPlayerPawnCollider(true);
-            selectedPawn = null;
-        }
+        selectedPawn = null;
+        GameManager.Instance.SetAllPlayerPawnCollider(true);
     }
     #endregion
 
@@ -115,55 +112,47 @@ public class TouchController : MonoBehaviour
         }
 
         List<Vector3> validMoves = selectedPawn.GetValidMoves();
+        List<Vector3> pushableMoves = selectedPawn.GetPushMoves();
+
         foreach (Vector3 move in validMoves)
         {
-            Transform cell = gridController.GetCellAtPosition(move);
-            if (cell != null)
+            HighlightCell(move, regularMoveColor);
+        }
+
+        foreach (Vector3 move in pushableMoves)
+        {
+            HighlightCell(move, pushMoveColor);
+        }
+    }
+    private void HighlightCell(Vector3 position, Color color)
+    {
+        Transform cell = gridController.GetCellAtPosition(position);
+        if (cell != null)
+        {
+            CubeController cubeController = cell.GetComponent<CubeController>();
+            if (cubeController != null)
             {
-                CubeController cubeController = cell.GetComponent<CubeController>();
-                if (cubeController != null)
-                {
-                    cubeController.ChangeHighlightVFX(true);
-                    highlightedCells.Add(cell);
-                    //Debug.Log($"Highlighted cell at position: {move}");
-                }
-            }
-            else
-            {
-                Debug.LogWarning($"No cell found at position: {move}");
+                cubeController.ChangeHighlightVFX(true, color);
+                highlightedCells[cell] = color;
             }
         }
-        
+        else
+        {
+            Debug.LogWarning($"No cell found at position: {position}");
+        }
     }
 
     private void ClearHighlightedCells()
     {
-        foreach (Transform cell in highlightedCells)
+        foreach (var cellPair in highlightedCells)
         {
-            CubeController cubeController = cell.GetComponent<CubeController>();
+            CubeController cubeController = cellPair.Key.GetComponent<CubeController>();
             if (cubeController != null)
             {
                 cubeController.ChangeHighlightVFX(false);
             }
         }
         highlightedCells.Clear();
-    }
-
-    private CubeController GetCellAtPosition(Vector3 position)
-    {
-        Collider[] colliders = Physics.OverlapSphere(position, 0.1f, cellLayer);
-        return colliders.Length > 0 ? colliders[0].GetComponent<CubeController>() : null;
-    }
-
-    private PawnMovement GetPawnAtPosition(Vector3 position)
-    {
-        Collider[] colliders = Physics.OverlapSphere(position, 0.1f, pawnLayer);
-        return colliders.Length > 0 ? colliders[0].GetComponent<PawnMovement>() : null;
-    }
-
-    private bool IsCellValid(Vector3 position)
-    {
-        return GetCellAtPosition(position) != null;
     }
     #endregion
 }
