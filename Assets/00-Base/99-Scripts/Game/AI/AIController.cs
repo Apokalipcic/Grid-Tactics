@@ -66,6 +66,7 @@ public class AIController : MonoBehaviour
     }
     #endregion
 
+
     #region Private Methods
     private IEnumerator MoveAlongPath()
     {

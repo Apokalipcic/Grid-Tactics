@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Collections.LowLevel.Unsafe;
 
 public class PawnMovement : MonoBehaviour, IPushable
 {
@@ -9,6 +10,7 @@ public class PawnMovement : MonoBehaviour, IPushable
     [Range(1, 10)]
     [SerializeField] private int movementRange = 1;
     [SerializeField] private int movementBuff = 0;
+    [SerializeField] bool isDead = false;
 
     [Header("Movement Options")]
     [SerializeField] private bool canMoveDiagonally = false;
@@ -25,6 +27,9 @@ public class PawnMovement : MonoBehaviour, IPushable
     [SerializeField] private bool canPush = true;
     [SerializeField] private bool canChainPush = true;
     [SerializeField] private float pushSpeed = 2f;
+
+    [Header("Components")]
+    [SerializeField] private Animator anim;
 
     private bool isPushing = false;
 
@@ -59,6 +64,9 @@ public class PawnMovement : MonoBehaviour, IPushable
             cellSize = gridController.cellSize;
         else
             Debug.LogError($"Grid Controller in pawn {this.name} not found");
+
+        if (!anim)
+            anim = this.GetComponent<Animator>();
 
         GameManager.Instance.AddPawn(this, this.tag);
         pathfinder = new AStarPathfinder(gridController, this);
@@ -166,6 +174,25 @@ public class PawnMovement : MonoBehaviour, IPushable
 
             transform.position = cellPosition;
 
+            CubeController currentCube = gridController.GetCellAtPosition(cellPosition)?.GetComponent<CubeController>();
+            if (currentCube != null && currentCube.IsOccupied())
+            {
+                GameObject occupant = currentCube.GetOccupant();
+                if (occupant.CompareTag("Enemy"))
+                {
+                    PawnMovement enemyAI = occupant.GetComponent<PawnMovement>();
+                    if (enemyAI != null)
+                    {
+                        enemyAI.KillEvent();
+                        // Wait for the kill event to complete
+                        yield return new WaitForSeconds(0.5f); // Adjust this time as needed
+                    }
+                    // Clear the cell after killing the enemy
+                    currentCube.OnDeoccupy();
+                }
+            }
+
+
             // Consume Action Point, but not for the first step
             if (!isFirstStep)
             {
@@ -249,25 +276,31 @@ public class PawnMovement : MonoBehaviour, IPushable
         }
     }
 
-    public bool TryPush(Vector3 direction)
+public bool TryPush(Vector3 direction)
+{
+    if (!canPush || isMoving || isPushing) return false;
+
+    if (!CanPushChain(direction)) return false;
+
+    Vector3 currentPosition = transform.position;
+    List<IPushable> objectsToPush = new List<IPushable>();
+
+    while (true)
     {
-        if (!canPush || isMoving || isPushing) return false;
+        Vector3 nextPosition = currentPosition + direction * cellSize;
+        CubeController nextCube = gridController.GetCellAtPosition(nextPosition)?.GetComponent<CubeController>();
 
-        if (!CanPushChain(direction)) return false;
+        if (nextCube == null) break;
+        if (!nextCube.IsOccupied()) break;
 
-        Vector3 currentPosition = transform.position;
-        List<IPushable> objectsToPush = new List<IPushable>();
+        // Remove the check for isWalkable here
 
-        while (true)
+        GameObject occupant = nextCube.GetOccupant();
+        
+        // Check if the occupant is Neutral or has the same tag as the pushing pawn
+        if (occupant.CompareTag("Neutral") || occupant.CompareTag(this.gameObject.tag))
         {
-            Vector3 nextPosition = currentPosition + direction * cellSize;
-            CubeController nextCube = gridController.GetCellAtPosition(nextPosition)?.GetComponent<CubeController>();
 
-            //if (nextCube == null || !nextCube.isWalkable) break;
-            if (nextCube == null) break;
-            if (!nextCube.IsOccupied()) break;
-
-            GameObject occupant = nextCube.GetOccupant();
             IPushable nextPushable = occupant.GetComponent<IPushable>();
 
             if (nextPushable == null) break;
@@ -278,15 +311,20 @@ public class PawnMovement : MonoBehaviour, IPushable
 
             currentPosition = nextPosition;
         }
-
-        // Push objects in reverse order
-        for (int i = objectsToPush.Count - 1; i >= 0; i--)
+        else
         {
-            objectsToPush[i].Push(direction);
+            break; // Cannot push objects that are not Neutral or the same tag
         }
-
-        return true;
     }
+
+    // Push objects in reverse order
+    for (int i = objectsToPush.Count - 1; i >= 0; i--)
+    {
+        objectsToPush[i].Push(direction);
+    }
+
+    return objectsToPush.Count > 0;
+}
 
     public List<Vector3> GetPushMoves()
     {
@@ -368,6 +406,30 @@ public class PawnMovement : MonoBehaviour, IPushable
     }
     #endregion
 
+    #region Public Events
+    public void KillEvent()
+    {
+        Debug.Log($"Name [{this.name}] Tag [{this.tag}] - pawn died!");
+
+        // Example: Disable the enemy GameObject
+        //gameObject.SetActive(false);
+
+        anim.SetBool("DecreaseSize", true);
+
+        isDead = true;
+    }
+
+    public void RessurectEvent()
+    {
+        if (!isDead) return;
+
+        anim.SetBool("DecreaseSize", false);
+
+        Debug.Log($"Name [{this.name}] Tag [{this.tag}] - pawn ressurected!");
+    }
+
+    #endregion
+
     #region Helper Methods
     public bool CanMoveDiagonally()
     {
@@ -390,32 +452,34 @@ public class PawnMovement : MonoBehaviour, IPushable
             StopCoroutine(currentMovement);
         }
 
-        currentMovement = StartCoroutine(ResetToOrigin(resetSpeed));
+        UpdateCubeOccupation(this.transform.position, false);
+
+        currentMovement = StartCoroutine(Reset(resetSpeed, originPosition, originRotation));
     }
 
-    private IEnumerator ResetToOrigin(float resetSpeed)
+    private IEnumerator Reset(float resetSpeed, Vector3 position, Quaternion rotation)
     {
         isMoving = true;
         pawnCollider.enabled = false;
 
         Vector3 startPosition = transform.position;
         Quaternion startRotation = transform.rotation;
-        float journeyLength = Vector3.Distance(startPosition, originPosition);
+        float journeyLength = Vector3.Distance(startPosition, position);
         float startTime = Time.time;
 
-        while (transform.position != originPosition || transform.rotation != originRotation)
+        while (transform.position != position || transform.rotation != rotation)
         {
             float distanceCovered = (Time.time - startTime) * resetSpeed;
             float fractionOfJourney = distanceCovered / journeyLength;
 
-            transform.position = Vector3.Lerp(startPosition, originPosition, fractionOfJourney);
-            transform.rotation = Quaternion.Slerp(startRotation, originRotation, fractionOfJourney);
+            transform.position = Vector3.Lerp(startPosition, position, fractionOfJourney);
+            transform.rotation = Quaternion.Slerp(startRotation, rotation, fractionOfJourney);
 
             yield return null;
         }
 
-        lastPosition = originPosition;
-        lastRotation = originRotation;
+        lastPosition = position;
+        lastRotation = rotation;
 
         Reset();
     }
@@ -452,12 +516,23 @@ public class PawnMovement : MonoBehaviour, IPushable
         currentMovement = null;
         GameManager.Instance.ReturnActionPoints(amountOfActionPointsUsed);
         amountOfActionPointsUsed = 0;
+        RessurectEvent();
+        UpdateCubeOccupation(lastPosition, true);
+        Debug.Log($"Undo move by {this.name} && LastPosition is {lastPosition}");
     }
 
-    public void UndoMove()
+    public void UndoMove(float resetSpeed)
     {
-        Debug.Log($"Undo move by {this.name}");
-        Reset();
+        if (!moved) return;
+
+        if (currentMovement != null)
+        {
+            StopCoroutine(currentMovement);
+        }
+
+        UpdateCubeOccupation(this.transform.position, false);
+
+        currentMovement = StartCoroutine(Reset(resetSpeed, lastPosition, lastRotation));
     }
     #endregion
 }

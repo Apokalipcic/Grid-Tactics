@@ -381,7 +381,7 @@ public class GameManager : MonoBehaviour
         {
             foreach (PawnMovement pawn in PlayerPawns)
             {
-                pawn.UndoMove();
+                pawn.UndoMove(resetSpeed);
             }
         }
 
@@ -389,7 +389,7 @@ public class GameManager : MonoBehaviour
         {
             foreach (PawnMovement pawn in EnemyPawns)
             {
-                pawn.UndoMove();
+                pawn.UndoMove(resetSpeed);
             }
         }
 
@@ -397,7 +397,7 @@ public class GameManager : MonoBehaviour
         {
             foreach (PawnMovement pawn in NeutralPawns)
             {
-                pawn.UndoMove();
+                pawn.UndoMove(resetSpeed);
             }
         }
 

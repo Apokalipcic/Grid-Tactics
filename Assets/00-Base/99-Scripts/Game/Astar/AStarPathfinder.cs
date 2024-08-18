@@ -93,16 +93,25 @@ public class AStarPathfinder
 
         if (toCube == null) return false;
 
-        if (!toCube.isWalkable) return false;
-
         if (toCube.IsOccupied())
         {
             GameObject occupant = toCube.GetOccupant();
-            // Consider occupied cells as invalid moves for pathfinding
-            return false;
+
+            // Check if the occupant is an enemy
+            if (occupant.CompareTag("Enemy"))
+            {
+                // Consider it a valid move if it's occupied by an enemy, regardless of isWalkable
+                return true;
+            }
+            else
+            {
+                // For non-enemy occupants, consider it an invalid move
+                return false;
+            }
         }
 
-        return true;
+        // For unoccupied cells, respect the isWalkable property
+        return toCube.isWalkable;
     }
 
     private int GetMoveCost(Vector3 from, Vector3 to)
