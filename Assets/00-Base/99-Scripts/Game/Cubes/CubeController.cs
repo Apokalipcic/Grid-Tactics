@@ -35,9 +35,6 @@ public class CubeController : MonoBehaviour
 
         this.gameObject.SetActive(true);
         this.transform.GetComponentInParent<GridController>().AddNewCell(this.transform);
-
-        if (occupant != null)
-            OnOccupy(occupant);
     }
     #endregion
 

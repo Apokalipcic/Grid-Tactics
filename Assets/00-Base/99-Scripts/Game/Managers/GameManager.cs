@@ -102,25 +102,41 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator ActivateGrid()
     {
+        // Grid Activation
         int totalCells = gridCellsHolder.childCount;
-
-        float delayBetweenSpawn = timeToActivateWholeGrid / totalCells;
-
+        float gridDelayBetweenSpawn = (timeToActivateWholeGrid/totalCells) / 2; // Divide by 2 since we're activating two cells at once
         int forwardIndex = 0;
         int backwardIndex = totalCells - 1;
 
-        while (totalCells > 0)
+        while (forwardIndex <= backwardIndex)
         {
             gridCellsHolder.GetChild(forwardIndex).GetComponent<CubeController>().ActivateThisCube();
-            gridCellsHolder.GetChild(backwardIndex).GetComponent<CubeController>().ActivateThisCube();
 
+            if (forwardIndex != backwardIndex) // Avoid activating the same cell twice for odd numbers
+            {
+                gridCellsHolder.GetChild(backwardIndex).GetComponent<CubeController>().ActivateThisCube();
+            }
 
             forwardIndex++;
             backwardIndex--;
+            yield return new WaitForSeconds(gridDelayBetweenSpawn);
+        }
 
-            yield return new WaitForSeconds(delayBetweenSpawn);
+        // Wait for one frame to ensure all grid operations are complete
+        yield return null;
 
-            totalCells = totalCells - 2;
+        // Pawn Activation
+        List<PawnMovement> allPawns = new List<PawnMovement>();
+        allPawns.AddRange(PlayerPawns);
+        allPawns.AddRange(EnemyPawns);
+        allPawns.AddRange(NeutralPawns);
+
+        float pawnDelayBetweenSpawn = timeToActivateWholeGrid / allPawns.Count;
+
+        foreach (PawnMovement pawn in allPawns)
+        {
+            pawn.Initialize();
+            yield return new WaitForSeconds(pawnDelayBetweenSpawn);
         }
     }
 

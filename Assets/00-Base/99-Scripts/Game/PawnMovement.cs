@@ -45,6 +45,7 @@ public class PawnMovement : MonoBehaviour, IPushable
     private Dictionary<Vector3, List<Vector3>> cachedPaths;
     private HashSet<Vector3> pushableMoves;
     private bool moved = false;
+    private CubeController currentOccupiedCell;
 
     [Header("Booster Properties")]
     private string currentBooster = "None";
@@ -52,6 +53,12 @@ public class PawnMovement : MonoBehaviour, IPushable
 
     #region Initialization
     private void Start()
+    {
+        GameManager.Instance.AddPawn(this, this.tag);
+        this.gameObject.SetActive(false);
+    }
+
+    public void Initialize()
     {
         originPosition = transform.position;
         originRotation = transform.rotation;
@@ -70,7 +77,19 @@ public class PawnMovement : MonoBehaviour, IPushable
 
         GameManager.Instance.AddPawn(this, this.tag);
         pathfinder = new AStarPathfinder(gridController, this);
+
+        currentOccupiedCell = gridController.GetCellAtPosition(originPosition)?.GetComponent<CubeController>();
+
+        if (currentOccupiedCell != null)
+        {
+            currentOccupiedCell.OnOccupy(this.gameObject);
+        }
+        else
+            Debug.Log($"Current Occupied Cell doesn't exist at position {originPosition}");
+
+        this.gameObject.SetActive(true);
     }
+
     #endregion
 
     #region Movement Methods
@@ -183,12 +202,10 @@ public class PawnMovement : MonoBehaviour, IPushable
                     PawnMovement enemyAI = occupant.GetComponent<PawnMovement>();
                     if (enemyAI != null)
                     {
-                        enemyAI.KillEvent();
-                        // Wait for the kill event to complete
-                        yield return new WaitForSeconds(0.5f); // Adjust this time as needed
+                        enemyAI.DeathEvent();
                     }
                     // Clear the cell after killing the enemy
-                    currentCube.OnDeoccupy();
+                    //currentCube.OnDeoccupy();
                 }
             }
 
@@ -407,14 +424,20 @@ public bool TryPush(Vector3 direction)
     #endregion
 
     #region Public Events
-    public void KillEvent()
+    public void DeathEvent()
     {
+        if(isDead) return;
+
+        currentOccupiedCell.OnDeoccupy();
+
         Debug.Log($"Name [{this.name}] Tag [{this.tag}] - pawn died!");
 
         // Example: Disable the enemy GameObject
         //gameObject.SetActive(false);
 
         anim.SetBool("DecreaseSize", true);
+
+        //GameManager.Instance.RemovePawn(this);
 
         isDead = true;
     }
@@ -423,7 +446,13 @@ public bool TryPush(Vector3 direction)
     {
         if (!isDead) return;
 
+        isDead = false;
+
         anim.SetBool("DecreaseSize", false);
+
+        currentOccupiedCell.OnOccupy(this.gameObject);
+
+        //GameManager.Instance.AddPawn(this, this.tag);
 
         Debug.Log($"Name [{this.name}] Tag [{this.tag}] - pawn ressurected!");
     }
@@ -447,6 +476,11 @@ public bool TryPush(Vector3 direction)
 
     public void OriginReset(float resetSpeed)
     {
+        if (isDead)
+        {
+            RessurectEvent();
+        }
+
         if (currentMovement != null)
         {
             StopCoroutine(currentMovement);
@@ -516,13 +550,17 @@ public bool TryPush(Vector3 direction)
         currentMovement = null;
         GameManager.Instance.ReturnActionPoints(amountOfActionPointsUsed);
         amountOfActionPointsUsed = 0;
-        RessurectEvent();
         UpdateCubeOccupation(lastPosition, true);
         Debug.Log($"Undo move by {this.name} && LastPosition is {lastPosition}");
     }
 
     public void UndoMove(float resetSpeed)
     {
+        if (isDead)
+        {
+            RessurectEvent();
+        }
+
         if (!moved) return;
 
         if (currentMovement != null)
