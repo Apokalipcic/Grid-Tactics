@@ -53,8 +53,8 @@ public class GameManager : MonoBehaviour
 
     //private int currentNeutralActions;
     [Header("Reset Properties")]
-    [Range(1,10)]
-    [SerializeField] private float resetSpeed = 10;
+    [Range(0.05f,10)]
+    [SerializeField] private float resetDuration = 10;
 
     [Header("Pawns")]
     private int currentPlayerActions;
@@ -367,7 +367,7 @@ public class GameManager : MonoBehaviour
         {
             foreach (PawnMovement pawn in PlayerPawns)
             {
-                pawn.OriginReset(resetSpeed);
+                pawn.OriginReset(resetDuration);
             }
         }
 
@@ -375,7 +375,7 @@ public class GameManager : MonoBehaviour
         {
             foreach (PawnMovement pawn in EnemyPawns)
             {
-                pawn.OriginReset(resetSpeed);
+                pawn.OriginReset(resetDuration);
             }
         }
 
@@ -383,7 +383,7 @@ public class GameManager : MonoBehaviour
         {
             foreach (PawnMovement pawn in NeutralPawns)
             {
-                pawn.OriginReset(resetSpeed);
+                pawn.OriginReset(resetDuration);
             }
         }
 
@@ -397,7 +397,7 @@ public class GameManager : MonoBehaviour
         {
             foreach (PawnMovement pawn in PlayerPawns)
             {
-                pawn.UndoMove(resetSpeed);
+                pawn.UndoMove(resetDuration);
             }
         }
 
@@ -405,7 +405,7 @@ public class GameManager : MonoBehaviour
         {
             foreach (PawnMovement pawn in EnemyPawns)
             {
-                pawn.UndoMove(resetSpeed);
+                pawn.UndoMove(resetDuration);
             }
         }
 
@@ -413,7 +413,7 @@ public class GameManager : MonoBehaviour
         {
             foreach (PawnMovement pawn in NeutralPawns)
             {
-                pawn.UndoMove(resetSpeed);
+                pawn.UndoMove(resetDuration);
             }
         }
 

@@ -10135,7 +10135,7 @@ MonoBehaviour:
   gridCellsHolder: {fileID: 889870661}
   maxPlayerActions: 25
   maxEnemyActions: 3
-  resetSpeed: 10
+  resetSpeed: 2
   userInterface: {fileID: 1081799673}
   winConditionManager: {fileID: 0}
   debug: 1

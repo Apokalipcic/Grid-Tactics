@@ -127,7 +127,6 @@ public class PawnMovement : MonoBehaviour, IPushable
             if (TryPush(direction))
             {
                 StoreCurrentState();
-                moved = true;
                 amountOfActionPointsUsed = 1; // Pushing always costs 1 action point
                 GameManager.Instance.UseActionPoint();
             }
@@ -145,7 +144,6 @@ public class PawnMovement : MonoBehaviour, IPushable
         }
 
         StoreCurrentState();
-        moved = true;
         amountOfActionPointsUsed = 0;
 
         List<Vector3> path = cachedPaths[destination];
@@ -389,6 +387,8 @@ public bool TryPush(Vector3 direction)
     {
         isPushing = true;
 
+        StoreCurrentState();
+
         UpdateCubeOccupation(transform.position, false);
 
         Vector3 startPosition = transform.position;
@@ -417,7 +417,8 @@ public bool TryPush(Vector3 direction)
 
     private void HandlePushedOffGrid()
     {
-        GameManager.Instance.RemovePawn(this);
+        DeathEvent();
+        //GameManager.Instance.RemovePawn(this);
         GetComponent<Rigidbody>().isKinematic = false;
         Debug.Log($"Pawn {this.name} was pushed off the grid");
     }
@@ -448,6 +449,8 @@ public bool TryPush(Vector3 direction)
 
         isDead = false;
 
+        GetComponent<Rigidbody>().isKinematic = true;
+
         anim.SetBool("DecreaseSize", false);
 
         currentOccupiedCell.OnOccupy(this.gameObject);
@@ -474,12 +477,15 @@ public bool TryPush(Vector3 direction)
         return cachedPaths.ContainsKey(endPosition) || pushableMoves.Contains(endPosition);
     }
 
-    public void OriginReset(float resetSpeed)
+    public void OriginReset(float resedDuration)
     {
         if (isDead)
         {
             RessurectEvent();
         }
+
+        if (!moved)
+            return;
 
         if (currentMovement != null)
         {
@@ -488,32 +494,42 @@ public bool TryPush(Vector3 direction)
 
         UpdateCubeOccupation(this.transform.position, false);
 
-        currentMovement = StartCoroutine(Reset(resetSpeed, originPosition, originRotation));
+        currentMovement = StartCoroutine(ResetPosition(resedDuration, originPosition, originRotation));
     }
 
-    private IEnumerator Reset(float resetSpeed, Vector3 position, Quaternion rotation)
+    private IEnumerator ResetPosition(float resetDuration, Vector3 targetPosition, Quaternion targetRotation)
     {
         isMoving = true;
         pawnCollider.enabled = false;
 
         Vector3 startPosition = transform.position;
         Quaternion startRotation = transform.rotation;
-        float journeyLength = Vector3.Distance(startPosition, position);
-        float startTime = Time.time;
 
-        while (transform.position != position || transform.rotation != rotation)
+        float elapsedTime = 0f;
+
+        while (elapsedTime < resetDuration)
         {
-            float distanceCovered = (Time.time - startTime) * resetSpeed;
-            float fractionOfJourney = distanceCovered / journeyLength;
+            float t = elapsedTime / resetDuration;
 
-            transform.position = Vector3.Lerp(startPosition, position, fractionOfJourney);
-            transform.rotation = Quaternion.Slerp(startRotation, rotation, fractionOfJourney);
+            // Use SmoothStep for a more natural easing
+            float smoothT = Mathf.SmoothStep(0f, 1f, t);
 
+            transform.position = Vector3.Lerp(startPosition, targetPosition, smoothT);
+            transform.rotation = Quaternion.Slerp(startRotation, targetRotation, smoothT);
+
+            elapsedTime += Time.deltaTime;
             yield return null;
         }
 
-        lastPosition = position;
-        lastRotation = rotation;
+        // Ensure final position and rotation are exact
+        transform.position = targetPosition;
+        transform.rotation = targetRotation;
+
+        lastPosition = targetPosition;
+        lastRotation = targetRotation;
+
+        isMoving = false;
+        pawnCollider.enabled = true;
 
         Reset();
     }
@@ -532,6 +548,8 @@ public bool TryPush(Vector3 direction)
     {
         lastPosition = transform.position;
         lastRotation = transform.rotation;
+
+        moved = true;
     }
 
     public void Reset()
@@ -554,7 +572,7 @@ public bool TryPush(Vector3 direction)
         Debug.Log($"Undo move by {this.name} && LastPosition is {lastPosition}");
     }
 
-    public void UndoMove(float resetSpeed)
+    public void UndoMove(float resetDuration)
     {
         if (isDead)
         {
@@ -570,7 +588,7 @@ public bool TryPush(Vector3 direction)
 
         UpdateCubeOccupation(this.transform.position, false);
 
-        currentMovement = StartCoroutine(Reset(resetSpeed, lastPosition, lastRotation));
+        currentMovement = StartCoroutine(ResetPosition(resetDuration, lastPosition, lastRotation));
     }
     #endregion
 }
