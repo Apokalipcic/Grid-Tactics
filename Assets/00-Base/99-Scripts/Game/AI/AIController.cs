@@ -23,6 +23,9 @@ public class AIController : MonoBehaviour
         {
             pawnMovement = GetComponent<PawnMovement>();
         }
+
+        GameManager.Instance.AddPawn(pawnMovement,this.tag);
+
     }
     #endregion
 

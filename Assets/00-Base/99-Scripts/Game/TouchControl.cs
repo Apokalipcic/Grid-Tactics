@@ -58,7 +58,8 @@ public class TouchController : MonoBehaviour
         if (pawn != null && !pawn.IsMoving() && pawn.CompareTag("Player"))
         {
             selectedPawn = pawn;
-            selectedPawn.SelectThisPawn();
+            //selectedPawn.SelectThisPawn();
+            GameManager.Instance.SetAllPlayerPawnCollider(false);
             selectedPawn.CalculateReachableCells();
             HighlightValidMoves();
         }
@@ -96,7 +97,7 @@ public class TouchController : MonoBehaviour
         ClearHighlightedCells();
         if (selectedPawn != null)
         {
-            selectedPawn.DeselectThisPawn();
+            GameManager.Instance.SetAllPlayerPawnCollider(true);
             selectedPawn = null;
         }
     }

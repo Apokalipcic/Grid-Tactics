@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices.WindowsRuntime;
 using UnityEngine;
 
 public class CubeController : MonoBehaviour
@@ -8,43 +9,66 @@ public class CubeController : MonoBehaviour
     [Header("Components")]
     [SerializeField] ParticleSystem cubeHighlightVFX;
 
+    [Header("Occupation")]
+    [SerializeField] private GameObject occupant;
+
+    [Header("Debug")]
+    [SerializeField] bool activateThisObject = true;
+
     public bool isWalkable = true;
-    private string occupiedByTag = null;
+
 
     #region Activation
+
+    private void OnValidate()
+    {
+        activateThisObject = this.gameObject.activeSelf;
+    }
     public void ActivateThisCube()
     {
-        if (!isWalkable)
+        if (!activateThisObject)
             return;
 
-        this.gameObject.SetActive(isWalkable);
+        this.gameObject.SetActive(true);
         this.transform.GetComponentInParent<GridController>().AddNewCell(this.transform);
+
+        if (occupant != null)
+            OnOccupy(occupant);
     }
     #endregion
 
     #region Occupation Methods
-    public void OnOccupy(string tag)
+    public void OnOccupy(GameObject obj)
     {
-        occupiedByTag = tag;
+        if (occupant != null && occupant != obj)
+        {
+            // Handle case where a new object is pushing out the current occupant
+            IPushable currentOccupant = occupant.GetComponent<IPushable>();
+            if (currentOccupant != null)
+            {
+                Vector3 pushDirection = (occupant.transform.position - obj.transform.position).normalized;
+                currentOccupant.Push(pushDirection);
+            }
+        }
 
+        occupant = obj;
         isWalkable = false;
     }
 
     public void OnDeoccupy()
     {
-        occupiedByTag = null;
-
+        occupant = null;
         isWalkable = true;
     }
 
     public bool IsOccupied()
     {
-        return occupiedByTag != null;
+        return occupant != null;
     }
 
-    public bool IsOccupiedBy(string tag)
+    public GameObject GetOccupant()
     {
-        return occupiedByTag == tag;
+        return occupant;
     }
     #endregion
 

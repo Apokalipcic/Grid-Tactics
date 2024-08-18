@@ -143,8 +143,10 @@ public class GameManager : MonoBehaviour
             {
                 currentPlayerActions++;
                 userInterface.UpdatePlayerActionPoint(true);
+                float delayBetweenSpawn = timeToActivateWholeGrid / maxPlayerActions;
 
-                yield return new WaitForSeconds(0.15f);
+
+                yield return new WaitForSeconds(delayBetweenSpawn);
             }
         }
         else if (CurrentState == GameState.EnemyAction)
@@ -153,8 +155,10 @@ public class GameManager : MonoBehaviour
             {
                 currentEnemyActions++;
                 //userInterface.UpdatePlayerActionPoint(true);
+                float delayBetweenSpawn = timeToActivateWholeGrid / maxEnemyActions;
 
-                yield return new WaitForSeconds(0.15f);
+
+                yield return new WaitForSeconds(delayBetweenSpawn);
             }
         }
     }
@@ -303,9 +307,40 @@ public class GameManager : MonoBehaviour
 
     public void RemovePawn(PawnMovement pawn)
     {
-        PlayerPawns.Remove(pawn);
-        EnemyPawns.Remove(pawn);
-        NeutralPawns.Remove(pawn);
+        if(PlayerPawns.Contains(pawn))
+            PlayerPawns.Remove(pawn);
+        else if(EnemyPawns.Contains(pawn))
+            EnemyPawns.Remove(pawn);
+        else if(NeutralPawns.Contains(pawn))
+            NeutralPawns.Remove(pawn);
+    }
+
+    public void SetAllPlayerPawnCollider(bool state)
+    {
+        foreach (var player in PlayerPawns)
+        {
+            player.GetComponent<Collider>().enabled = state;
+        }
+    }
+
+    public PawnMovement GetPawnAtPosition(Vector3 position)
+    {
+        foreach (var pawn in PlayerPawns)
+        {
+            if (Vector3.Distance(pawn.transform.position, position) < 0.1f)
+                return pawn;
+        }
+        foreach (var pawn in EnemyPawns)
+        {
+            if (Vector3.Distance(pawn.transform.position, position) < 0.1f)
+                return pawn;
+        }
+        foreach (var pawn in NeutralPawns)
+        {
+            if (Vector3.Distance(pawn.transform.position, position) < 0.1f)
+                return pawn;
+        }
+        return null;
     }
 
     public void ResetCurrentStage()
