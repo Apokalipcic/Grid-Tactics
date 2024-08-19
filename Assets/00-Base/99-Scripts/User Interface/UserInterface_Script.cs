@@ -47,11 +47,11 @@ public class UserInterface_Script : MonoBehaviour
         }
     }
 
-    public void UpdatePlayerActionPoint(bool increase)
+    public void UpdatePlayerActionPoint(bool consume)
     {
-        currentAmountOfActivatedAP = increase ? currentAmountOfActivatedAP+1: currentAmountOfActivatedAP-1;
+        currentAmountOfActivatedAP = consume ? currentAmountOfActivatedAP-1: currentAmountOfActivatedAP+1;
 
-        playerActionPointsHolder.GetChild(currentAmountOfActivatedAP).gameObject.SetActive(increase);
+        playerActionPointsHolder.GetChild(currentAmountOfActivatedAP).gameObject.SetActive(!consume);
     }
     #endregion
 

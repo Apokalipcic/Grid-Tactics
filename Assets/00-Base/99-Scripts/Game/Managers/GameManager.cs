@@ -54,7 +54,7 @@ public class GameManager : MonoBehaviour
     //private int currentNeutralActions;
     [Header("Reset Properties")]
     [Range(0.05f,10)]
-    [SerializeField] private float resetDuration = 10;
+    [SerializeField] private float resetDuration = 0.5f;
 
     [Header("Pawns")]
     private int currentPlayerActions;
@@ -146,6 +146,12 @@ public class GameManager : MonoBehaviour
     private void StartPlayerTurn()
     {
         CurrentState = GameState.PlayerAction;
+
+        foreach (PawnMovement pawn in PlayerPawns)
+        {
+            pawn.ClearTurnActions();
+        }
+
         //currentPlayerActions = maxPlayerActions;
         StartCoroutine(IncreaseActionPointsPool());
         // Additional logic for starting player turn    
@@ -158,7 +164,7 @@ public class GameManager : MonoBehaviour
             while (currentPlayerActions != maxPlayerActions)
             {
                 currentPlayerActions++;
-                userInterface.UpdatePlayerActionPoint(true);
+                userInterface.UpdatePlayerActionPoint(false);
                 float delayBetweenSpawn = timeToActivateWholeGrid / maxPlayerActions;
 
 
@@ -265,15 +271,15 @@ public class GameManager : MonoBehaviour
         currentPlayerActions += amount;
         userInterface.SetPlayerActionPonts(currentPlayerActions);
     }
-    public bool UseActionPoint()
+    public bool UseActionPoint(bool consume = true)
     {
         switch (CurrentState)
         {
             case GameState.PlayerAction:
                 if (currentPlayerActions > 0)
                 {
-                    currentPlayerActions--;
-                    userInterface.UpdatePlayerActionPoint(false);
+                    currentPlayerActions -= consume ? 1: -1;
+                    userInterface.UpdatePlayerActionPoint(consume);
                     if (currentPlayerActions == 0) EndCurrentTurn();
                     return true;
                 }
@@ -281,7 +287,7 @@ public class GameManager : MonoBehaviour
             case GameState.EnemyAction:
                 if (currentEnemyActions > 0)
                 {
-                    currentEnemyActions--;
+                    currentEnemyActions -= consume ? 1 : -1;
                     UpdateUI();
                     if (currentEnemyActions == 0) EndCurrentTurn();
                     return true;
@@ -371,21 +377,21 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        if (EnemyPawns.Count != 0)
-        {
-            foreach (PawnMovement pawn in EnemyPawns)
-            {
-                pawn.OriginReset(resetDuration);
-            }
-        }
+        //if (EnemyPawns.Count != 0)
+        //{
+        //    foreach (PawnMovement pawn in EnemyPawns)
+        //    {
+        //        pawn.OriginReset(resetDuration);
+        //    }
+        //}
 
-        if (NeutralPawns.Count != 0)
-        {
-            foreach (PawnMovement pawn in NeutralPawns)
-            {
-                pawn.OriginReset(resetDuration);
-            }
-        }
+        //if (NeutralPawns.Count != 0)
+        //{
+        //    foreach (PawnMovement pawn in NeutralPawns)
+        //    {
+        //        pawn.OriginReset(resetDuration);
+        //    }
+        //}
 
         Debug.Log($"Reset Current Stage was pressed");
     }
@@ -401,21 +407,21 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        if (EnemyPawns.Count != 0)
-        {
-            foreach (PawnMovement pawn in EnemyPawns)
-            {
-                pawn.UndoMove(resetDuration);
-            }
-        }
+        //if (EnemyPawns.Count != 0)
+        //{
+        //    foreach (PawnMovement pawn in EnemyPawns)
+        //    {
+        //        pawn.UndoMove(resetDuration);
+        //    }
+        //}
 
-        if (NeutralPawns.Count != 0)
-        {
-            foreach (PawnMovement pawn in NeutralPawns)
-            {
-                pawn.UndoMove(resetDuration);
-            }
-        }
+        //if (NeutralPawns.Count != 0)
+        //{
+        //    foreach (PawnMovement pawn in NeutralPawns)
+        //    {
+        //        pawn.UndoMove(resetDuration);
+        //    }
+        //}
 
         Debug.Log($"Undo Move was pressed");
     }

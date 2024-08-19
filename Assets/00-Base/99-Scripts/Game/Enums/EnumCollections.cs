@@ -1,3 +1,7 @@
+using NUnit.Framework;
+using System.Collections.Generic;
+using UnityEngine;
+
 public enum WinConditionType
 {
     CollectChests,
@@ -17,6 +21,15 @@ public class WinCondition
 
     public void IncrementProgress(int amount = 1)
     {
-        CurrentAmount = UnityEngine.Mathf.Min(CurrentAmount + amount, RequiredAmount);
+        CurrentAmount = Mathf.Min(CurrentAmount + amount, RequiredAmount);
     }
+}
+[System.Serializable]
+
+public class PawnAction
+{
+    public Vector3 LastPosition { get; set; }
+    public Quaternion LastRotation { get; set; }
+    public int ActionPointsSpent { get; set; }
+    public List<PawnMovement> KilledPawns { get; set; } = new List<PawnMovement>();
 }

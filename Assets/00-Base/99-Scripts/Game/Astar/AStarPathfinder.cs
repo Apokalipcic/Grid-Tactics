@@ -119,6 +119,13 @@ public class AStarPathfinder
         CubeController toCube = gridController.GetCellAtPosition(to)?.GetComponent<CubeController>();
         if (toCube != null && toCube.IsOccupied())
         {
+            GameObject occupant = toCube.GetOccupant();
+            if (occupant.CompareTag("Enemy"))
+            {
+                // Lower cost for enemy-occupied cells
+                return 1;
+            }
+
             // Higher cost for push moves
             return 2;
         }
