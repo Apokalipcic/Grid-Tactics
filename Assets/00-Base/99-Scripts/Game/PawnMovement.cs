@@ -339,7 +339,8 @@ public bool TryPush(Vector3 direction)
     // Push objects in reverse order
     for (int i = objectsToPush.Count - 1; i >= 0; i--)
     {
-        objectsToPush[i].Push(direction);
+            objectsToPush[i].Push(direction);
+            RecordPushedObject(objectsToPush[i]);
     }
 
     return objectsToPush.Count > 0;
@@ -423,7 +424,7 @@ public bool TryPush(Vector3 direction)
     {
         DeathEvent();
         //GameManager.Instance.RemovePawn(this);
-        GetComponent<Rigidbody>().isKinematic = false;
+        //GetComponent<Rigidbody>().isKinematic = false;
         Debug.Log($"Pawn {this.name} was pushed off the grid");
     }
     #endregion
@@ -453,7 +454,7 @@ public bool TryPush(Vector3 direction)
 
         isDead = false;
 
-        GetComponent<Rigidbody>().isKinematic = true;
+        //GetComponent<Rigidbody>().isKinematic = true;
 
         anim.SetBool("DecreaseSize", false);
 
@@ -479,6 +480,16 @@ public bool TryPush(Vector3 direction)
             CalculateReachableCells();
         }
         return cachedPaths.ContainsKey(endPosition) || pushableMoves.Contains(endPosition);
+    }
+
+    public void ReturnPushObjectOrigin()
+    {
+        if (isDead)
+            RessurectEvent();
+
+        float resetDuration = GameManager.Instance.resetDuration;
+
+        OriginReset(resetDuration);
     }
 
     public void OriginReset(float resedDuration)
@@ -555,10 +566,17 @@ public bool TryPush(Vector3 direction)
             {
                 pawn.RessurectEvent();
             }
+
+            foreach (IPushable pushedObj in lastAction.PushedObjects)
+            {
+                pushedObj.UndoPushObject();
+            }
             
             UpdateCubeOccupation(lastAction.LastPosition, true);
 
             RemoveLastAction();
+
+            Debug.Log($"This {name} return to last position = {lastAction.LastPosition}");
         }
         else
         {
@@ -574,11 +592,19 @@ public bool TryPush(Vector3 direction)
                 {
                     deadPawn.RessurectEvent();
                 }
+
+                foreach (IPushable pushedObj in action.PushedObjects)
+                {
+                    pushedObj.ReturnPushObjectOrigin();
+                }
             }
 
             GameManager.Instance.ReturnActionPoints(allReturnAmountAP);
 
+            UpdateCubeOccupation(lastAction.LastPosition, true);
+
             ClearTurnActions();
+            Debug.Log($"This {name} return to origin position = {originPosition}");
         }
 
 
@@ -608,6 +634,10 @@ public bool TryPush(Vector3 direction)
     {
         turnActions[turnActions.Count - 1].KilledPawns.Add(pawn);
     }
+    private void RecordPushedObject(IPushable pushedObj)
+    {
+        turnActions[turnActions.Count-1].PushedObjects.Add(pushedObj);
+    }
     public void ClearTurnActions()
     {
         turnActions.Clear();
@@ -627,6 +657,16 @@ public bool TryPush(Vector3 direction)
         {
             turnActions.RemoveAt(turnActions.Count - 1);
         }
+    }
+
+    public void UndoPushObject()
+    {
+        if (isDead)
+            RessurectEvent();
+
+        float resetDuration = GameManager.Instance.resetDuration;
+
+        UndoMove(resetDuration);
     }
 
     public void UndoMove(float resetDuration)

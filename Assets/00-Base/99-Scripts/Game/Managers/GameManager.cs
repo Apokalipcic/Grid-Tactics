@@ -54,7 +54,7 @@ public class GameManager : MonoBehaviour
     //private int currentNeutralActions;
     [Header("Reset Properties")]
     [Range(0.05f,10)]
-    [SerializeField] private float resetDuration = 0.5f;
+    public float resetDuration = 0.5f;
 
     [Header("Pawns")]
     private int currentPlayerActions;

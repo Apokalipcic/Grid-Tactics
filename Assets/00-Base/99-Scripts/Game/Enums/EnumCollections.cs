@@ -32,4 +32,5 @@ public class PawnAction
     public Quaternion LastRotation { get; set; }
     public int ActionPointsSpent { get; set; }
     public List<PawnMovement> KilledPawns { get; set; } = new List<PawnMovement>();
+    public List<IPushable> PushedObjects { get; set; } = new List<IPushable>();
 }

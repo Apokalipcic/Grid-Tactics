@@ -43,13 +43,14 @@ public class CubeController : MonoBehaviour
     {
         if (occupant != null && occupant != obj)
         {
-            // Handle case where a new object is pushing out the current occupant
-            IPushable currentOccupant = occupant.GetComponent<IPushable>();
-            if (currentOccupant != null)
-            {
-                Vector3 pushDirection = (occupant.transform.position - obj.transform.position).normalized;
-                currentOccupant.Push(pushDirection);
-            }
+            Debug.LogWarning($"In Cube Controller I removed something check this out.");
+            //// Handle case where a new object is pushing out the current occupant
+            //IPushable currentOccupant = occupant.GetComponent<IPushable>();
+            //if (currentOccupant != null)
+            //{
+            //    Vector3 pushDirection = (occupant.transform.position - obj.transform.position).normalized;
+            //    currentOccupant.Push(pushDirection);
+            //}
         }
 
         occupant = obj;
