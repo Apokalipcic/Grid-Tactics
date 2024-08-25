@@ -16,10 +16,10 @@ public class PushableObstacles : MonoBehaviour, IPushable
     [SerializeField] private Animator anim;
 
     private Vector3 originPosition;
+    private Vector3 lastPosition;
     private bool isPushing = false;
     private Coroutine currentMovement;
     private CubeController currentOccupiedCell;
-
     #endregion
 
     #region Unity Lifecycle
@@ -32,6 +32,8 @@ public class PushableObstacles : MonoBehaviour, IPushable
     public void Initialize()
     {
         originPosition = transform.position;
+        lastPosition = originPosition;
+
         if (gridController == null)
         {
             gridController = FindObjectOfType<GridController>();
@@ -46,7 +48,7 @@ public class PushableObstacles : MonoBehaviour, IPushable
         }
 
         if (!anim)
-            anim = this.GetComponent<Animator>();
+            anim = GetComponent<Animator>();
 
         currentOccupiedCell = gridController.GetCellAtPosition(originPosition)?.GetComponent<CubeController>();
 
@@ -65,13 +67,19 @@ public class PushableObstacles : MonoBehaviour, IPushable
     public bool CanBePushed(Vector3 direction)
     {
         Vector3 targetPosition = transform.position + direction * cellSize;
-        return gridController.CellExists(targetPosition) && !gridController.GetCellAtPosition(targetPosition).GetComponent<CubeController>().IsOccupied();
+        if (!gridController.CellExists(targetPosition))
+        {
+            // Allow pushing off the grid
+            return true;
+        }
+        return !gridController.GetCellAtPosition(targetPosition).GetComponent<CubeController>().IsOccupied();
     }
 
     public void Push(Vector3 direction)
     {
         if (isPushing) return;
 
+        lastPosition = transform.position;
         Vector3 targetPosition = transform.position + direction * cellSize;
         StartCoroutine(PushCoroutine(targetPosition));
     }
@@ -96,20 +104,22 @@ public class PushableObstacles : MonoBehaviour, IPushable
 
         transform.position = targetPosition;
 
-        UpdateCubeOccupation(targetPosition, true);
-
-        isPushing = false;
-
-        if (!gridController.CellExists(targetPosition))
+        if (gridController.CellExists(targetPosition))
+        {
+            UpdateCubeOccupation(targetPosition, true);
+        }
+        else
         {
             HandlePushedOffGrid();
         }
+
+        isPushing = false;
     }
 
     private void HandlePushedOffGrid()
     {
-        // For now, we'll just deactivate the object
-        gameObject.SetActive(false);
+        // Implement off-grid behavior (e.g., deactivate, destroy, or special effect)
+        anim.SetBool("DecreaseSize", true);
         Debug.Log($"PushableObstacle {name} was pushed off the grid");
     }
 
@@ -121,7 +131,7 @@ public class PushableObstacles : MonoBehaviour, IPushable
         }
 
         float resetDuration = GameManager.Instance.resetDuration;
-        currentMovement = StartCoroutine(ResetPosition(resetDuration, transform.position, transform.position - transform.forward * cellSize));
+        currentMovement = StartCoroutine(ResetPosition(resetDuration, transform.position, lastPosition));
     }
 
     public void ReturnPushObjectOrigin()
@@ -137,7 +147,10 @@ public class PushableObstacles : MonoBehaviour, IPushable
 
     private IEnumerator ResetPosition(float resetDuration, Vector3 startPosition, Vector3 targetPosition)
     {
-        UpdateCubeOccupation(startPosition, false);
+        if (gridController.CellExists(startPosition))
+        {
+            UpdateCubeOccupation(startPosition, false);
+        }
 
         float elapsedTime = 0f;
 
@@ -153,7 +166,16 @@ public class PushableObstacles : MonoBehaviour, IPushable
         }
 
         transform.position = targetPosition;
-        UpdateCubeOccupation(targetPosition, true);
+
+        if (gridController.CellExists(targetPosition))
+        {
+            UpdateCubeOccupation(targetPosition, true);
+        }
+
+        if (anim.GetBool("DecreaseSize"))
+        {
+            anim.SetBool("DecreaseSize", false);
+        }
     }
 
     public string GetPushableName()

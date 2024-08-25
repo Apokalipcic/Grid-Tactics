@@ -34,4 +34,5 @@ public class PawnAction
     public int ActionPointsSpent { get; set; }
     public List<PawnMovement> KilledPawns { get; set; } = new List<PawnMovement>();
     public List<IPushable> PushedObjects { get; set; } = new List<IPushable>();
+    public int MoveNumber;  
 }

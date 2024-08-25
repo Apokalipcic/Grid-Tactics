@@ -73,6 +73,8 @@ public class GameManager : MonoBehaviour
     [Header("Debug")]
     [SerializeField] bool debug = false;
 
+    private int currentMoveNumber = 0;
+
     #endregion
 
     #region Unity Lifecycle
@@ -413,32 +415,29 @@ public class GameManager : MonoBehaviour
     {
         Debug.Log($"Undo Move was pressed");
         //Removing everything as it was by 1 turn.
+
+        if (currentMoveNumber < 0)
+            return;
+
         if (PlayerPawns.Count != 0)
         {
             foreach (PawnMovement pawn in PlayerPawns)
             {
-                pawn.UndoMove(resetDuration);
+                pawn.UndoMove(resetDuration, currentMoveNumber);
             }
         }
 
-        //if (EnemyPawns.Count != 0)
-        //{
-        //    foreach (PawnMovement pawn in EnemyPawns)
-        //    {
-        //        pawn.UndoMove(resetDuration);
-        //    }
-        //}
-
-        //if (NeutralPawns.Count != 0)
-        //{
-        //    foreach (PawnMovement pawn in NeutralPawns)
-        //    {
-        //        pawn.UndoMove(resetDuration);
-        //    }
-        //}
-
+        currentMoveNumber--;
+    }
+    public int GetCurrentMoveNumber()
+    {
+        return currentMoveNumber;
     }
 
+    public void IncrementMoveNumber()
+    {
+        currentMoveNumber++;
+    }
     #endregion
 
     #region Pusheable Management

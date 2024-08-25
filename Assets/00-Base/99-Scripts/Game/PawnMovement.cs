@@ -509,7 +509,7 @@ public class PawnMovement : MonoBehaviour, IPushable
 
     public void OriginReset(float resedDuration)
     {
-        PawnAction lastAction = GetLastAction();
+        PawnAction lastAction = GetLastAction(0, true);
         if (lastAction == null) return;
 
         if (currentMovement != null)
@@ -568,7 +568,7 @@ public class PawnMovement : MonoBehaviour, IPushable
 
     public void ResetPawn(bool resetOrigin = false)
     {
-        PawnAction lastAction = GetLastAction();
+        PawnAction lastAction = GetLastAction(0, true);
 
         if (!resetOrigin)
         {
@@ -636,14 +636,22 @@ public class PawnMovement : MonoBehaviour, IPushable
     #region Undo Action Functions
     private void RecordAction(Vector3 lastPosition, Quaternion lastRotation, int actionPointsSpent = 0, bool isPlayerAction = false)
     {
+        int currentMoveNumber = GameManager.Instance.GetCurrentMoveNumber();
+
         turnActions.Add(new PawnAction
         {
             isPlayerAction = isPlayerAction,
             LastPosition = lastPosition,
             LastRotation = lastRotation,
+            MoveNumber = currentMoveNumber+1,
         });
 
-        Debug.Log($"Recored an Action, current turnAction count is [{turnActions.Count}]");
+        if (isPlayerAction)
+        {
+            GameManager.Instance.IncrementMoveNumber();
+        }
+
+        Debug.Log($"Recorded an Action for move {currentMoveNumber}, current turnAction count is [{turnActions.Count}]");
     }
     private void RecordAmountOfActionPointSpend(int amount)
     {
@@ -666,11 +674,16 @@ public class PawnMovement : MonoBehaviour, IPushable
         turnActions.Clear();
     }
 
-    public PawnAction GetLastAction()
+    public PawnAction GetLastAction(int moveNumber, bool forceLastAction)
     {
         if (turnActions.Count > 0)
         {
-            return turnActions[turnActions.Count - 1];
+            PawnAction pawnAction = turnActions[turnActions.Count - 1];
+
+            if (forceLastAction)
+                return pawnAction;
+
+            return pawnAction.MoveNumber == moveNumber ? pawnAction: null;
         }
         return null;
     }
@@ -692,7 +705,7 @@ public class PawnMovement : MonoBehaviour, IPushable
         Debug.Log($"{this.name} pawn Undo Push Object; IsDead [{isDead}]" +
             $"; ");
 
-        UndoMove(resetDuration, true);
+        UndoMove(resetDuration, 0, true);
     }
 
     public string GetPushableName()
@@ -700,9 +713,9 @@ public class PawnMovement : MonoBehaviour, IPushable
         return this.name;
     }
 
-    public void UndoMove(float resetDuration, bool forceUndo = false)
+    public void UndoMove(float resetDuration, int moveNumberToUndo, bool forceUndo = false)
     {
-        PawnAction lastAction = GetLastAction();
+        PawnAction lastAction = GetLastAction(moveNumberToUndo, forceUndo);
 
         if (lastAction == null)
             return;
@@ -716,7 +729,7 @@ public class PawnMovement : MonoBehaviour, IPushable
 
         currentMovement = StartCoroutine(ResetPosition(resetDuration, lastAction.LastPosition, lastAction.LastRotation));
 
-        Debug.Log($"Pawn {this.name} was pressed by Undo Move");
+        Debug.Log($"Pawn {this.name} undid move number {moveNumberToUndo}");
     }
 
     #endregion
