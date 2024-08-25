@@ -626,7 +626,9 @@ public class PawnMovement : MonoBehaviour, IPushable
         }
 
         isMoving = false;
-        pawnCollider.enabled = true;
+
+        if(tag == "Player")
+            pawnCollider.enabled = true;
 
         currentMovement = null;
 

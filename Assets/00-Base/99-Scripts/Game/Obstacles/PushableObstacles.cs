@@ -16,7 +16,7 @@ public class PushableObstacles : MonoBehaviour, IPushable
     [SerializeField] private Animator anim;
 
     private Vector3 originPosition;
-    private Vector3 lastPosition;
+    private List<Vector3> lastPositions = new List<Vector3>();
     private bool isPushing = false;
     private Coroutine currentMovement;
     private CubeController currentOccupiedCell;
@@ -32,7 +32,7 @@ public class PushableObstacles : MonoBehaviour, IPushable
     public void Initialize()
     {
         originPosition = transform.position;
-        lastPosition = originPosition;
+        lastPositions.Add(originPosition);
 
         if (gridController == null)
         {
@@ -60,6 +60,8 @@ public class PushableObstacles : MonoBehaviour, IPushable
             Debug.Log($"Current Occupied Cell doesn't exist at position {originPosition}");
 
         this.gameObject.SetActive(true);
+        
+
     }
     #endregion
 
@@ -79,7 +81,7 @@ public class PushableObstacles : MonoBehaviour, IPushable
     {
         if (isPushing) return;
 
-        lastPosition = transform.position;
+        lastPositions.Add(transform.position);
         Vector3 targetPosition = transform.position + direction * cellSize;
         StartCoroutine(PushCoroutine(targetPosition));
     }
@@ -131,7 +133,10 @@ public class PushableObstacles : MonoBehaviour, IPushable
         }
 
         float resetDuration = GameManager.Instance.resetDuration;
-        currentMovement = StartCoroutine(ResetPosition(resetDuration, transform.position, lastPosition));
+
+        int lastPositionIndex = lastPositions.Count - 1;
+
+        currentMovement = StartCoroutine(ResetPosition(resetDuration, transform.position, lastPositions[lastPositionIndex]));
     }
 
     public void ReturnPushObjectOrigin()
@@ -175,6 +180,11 @@ public class PushableObstacles : MonoBehaviour, IPushable
         if (anim.GetBool("DecreaseSize"))
         {
             anim.SetBool("DecreaseSize", false);
+        }
+
+        if (lastPositions.Count > 0)
+        {
+            lastPositions.RemoveAt(lastPositions.Count-1);
         }
     }
 
