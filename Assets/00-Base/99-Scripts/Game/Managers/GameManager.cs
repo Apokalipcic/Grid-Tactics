@@ -63,6 +63,9 @@ public class GameManager : MonoBehaviour
     public List<PawnMovement> EnemyPawns { get; private set; } = new List<PawnMovement>();
     public List<PawnMovement> NeutralPawns { get; private set; } = new List<PawnMovement>();
 
+    [Header("Other elements")]
+    [SerializeField] List<PushableObstacles> pusheableElements = new List<PushableObstacles>();
+
     [Header("Script References")]
     [SerializeField] UserInterface_Script userInterface;
     [SerializeField] WinConditionManager winConditionManager;
@@ -95,7 +98,7 @@ public class GameManager : MonoBehaviour
         StartCoroutine(ActivateGrid());
 
         // Additional setup logic (e.g., spawning pawns, setting up the board)
-        StartPlayerTurn();
+        //StartPlayerTurn();
     }
 
     #region Grid System Functions
@@ -138,6 +141,16 @@ public class GameManager : MonoBehaviour
             pawn.Initialize();
             yield return new WaitForSeconds(pawnDelayBetweenSpawn);
         }
+
+        pawnDelayBetweenSpawn = timeToActivateWholeGrid / pusheableElements.Count;
+
+        foreach (PushableObstacles pusheableObject in pusheableElements)
+        {
+            pusheableObject.Initialize();
+            yield return new WaitForSeconds(pawnDelayBetweenSpawn);
+        }
+
+        StartPlayerTurn();
     }
 
     #endregion
@@ -398,6 +411,7 @@ public class GameManager : MonoBehaviour
 
     public void UndoMove()
     {
+        Debug.Log($"Undo Move was pressed");
         //Removing everything as it was by 1 turn.
         if (PlayerPawns.Count != 0)
         {
@@ -423,9 +437,16 @@ public class GameManager : MonoBehaviour
         //    }
         //}
 
-        Debug.Log($"Undo Move was pressed");
     }
 
+    #endregion
+
+    #region Pusheable Management
+    public void AddPusheable(PushableObstacles pusheableObj)
+    {
+        if(!pusheableElements.Contains(pusheableObj))
+            pusheableElements.Add(pusheableObj);
+    }
     #endregion
 
     #region Chest Management

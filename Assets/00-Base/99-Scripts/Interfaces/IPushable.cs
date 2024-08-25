@@ -7,4 +7,6 @@ public interface IPushable
 
     void ReturnPushObjectOrigin();
     void UndoPushObject();
+
+    string GetPushableName();
 }

@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.VisualScripting;
 
 public class PawnMovement : MonoBehaviour, IPushable
 {
@@ -125,8 +126,8 @@ public class PawnMovement : MonoBehaviour, IPushable
             Vector3 direction = (destination - transform.position).normalized;
             if (TryPush(direction))
             {
-                RecordAction(transform.position, transform.rotation, 1);
                 amountOfActionPointsUsed = 1; // Pushing always costs 1 action point
+                RecordAmountOfActionPointSpend(amountOfActionPointsUsed);
                 GameManager.Instance.UseActionPoint();
             }
             else
@@ -142,7 +143,7 @@ public class PawnMovement : MonoBehaviour, IPushable
             return;
         }
 
-        RecordAction(transform.position, transform.rotation);
+        RecordAction(transform.position, transform.rotation, 0, true);
         amountOfActionPointsUsed = 0;
 
         List<Vector3> path = cachedPaths[destination];
@@ -295,8 +296,8 @@ public class PawnMovement : MonoBehaviour, IPushable
         }
     }
 
-public bool TryPush(Vector3 direction)
-{
+    public bool TryPush(Vector3 direction)
+    {
     if (!canPush || isMoving || isPushing) return false;
 
     if (!CanPushChain(direction)) return false;
@@ -335,16 +336,24 @@ public bool TryPush(Vector3 direction)
             break; // Cannot push objects that are not Neutral or the same tag
         }
     }
+        
+    if(objectsToPush.Count > 0)    
+        RecordAction(transform.position, transform.rotation, 1, true);
 
     // Push objects in reverse order
     for (int i = objectsToPush.Count - 1; i >= 0; i--)
     {
-            objectsToPush[i].Push(direction);
-            RecordPushedObject(objectsToPush[i]);
+        objectsToPush[i].Push(direction);
+        RecordPushedObject(objectsToPush[i]);
+
+        Debug.Log($"This pawn {this.name} pushed object {objectsToPush[i].GetPushableName()}");
     }
 
+    
+
+
     return objectsToPush.Count > 0;
-}
+    }
 
     public List<Vector3> GetPushMoves()
     {
@@ -452,6 +461,12 @@ public bool TryPush(Vector3 direction)
     {
         if (!isDead) return;
 
+        Vector3 curPos = this.transform.position;
+
+        curPos.y = 0;
+
+        this.transform.position = curPos;
+
         isDead = false;
 
         //GetComponent<Rigidbody>().isKinematic = true;
@@ -502,13 +517,13 @@ public bool TryPush(Vector3 direction)
             StopCoroutine(currentMovement);
         }
 
-        UpdateCubeOccupation(this.transform.position, false);
-
         currentMovement = StartCoroutine(ResetPosition(resedDuration, originPosition, originRotation, true));
     }
 
     private IEnumerator ResetPosition(float resetDuration, Vector3 targetPosition, Quaternion targetRotation, bool resetOrigin = false)
     {
+        UpdateCubeOccupation(this.transform.position, false);
+
         isMoving = true;
         pawnCollider.enabled = false;
 
@@ -570,7 +585,10 @@ public bool TryPush(Vector3 direction)
             foreach (IPushable pushedObj in lastAction.PushedObjects)
             {
                 pushedObj.UndoPushObject();
+                Debug.Log($"Undo Push Object for [{pushedObj.GetPushableName()}]");
             }
+
+            Debug.Log($"PushedObjects count [{lastAction.PushedObjects.Count}]");
             
             UpdateCubeOccupation(lastAction.LastPosition, true);
 
@@ -601,12 +619,11 @@ public bool TryPush(Vector3 direction)
 
             GameManager.Instance.ReturnActionPoints(allReturnAmountAP);
 
-            UpdateCubeOccupation(lastAction.LastPosition, true);
+            UpdateCubeOccupation(originPosition, true);
 
             ClearTurnActions();
             Debug.Log($"This {name} return to origin position = {originPosition}");
         }
-
 
         isMoving = false;
         pawnCollider.enabled = true;
@@ -617,26 +634,32 @@ public bool TryPush(Vector3 direction)
     }
 
     #region Undo Action Functions
-    private void RecordAction(Vector3 lastPosition, Quaternion lastRotation, int actionPointsSpent = 0)
+    private void RecordAction(Vector3 lastPosition, Quaternion lastRotation, int actionPointsSpent = 0, bool isPlayerAction = false)
     {
         turnActions.Add(new PawnAction
         {
+            isPlayerAction = isPlayerAction,
             LastPosition = lastPosition,
             LastRotation = lastRotation,
         });
+
+        Debug.Log($"Recored an Action, current turnAction count is [{turnActions.Count}]");
     }
     private void RecordAmountOfActionPointSpend(int amount)
     {
         turnActions[turnActions.Count-1].ActionPointsSpent = amount;
-        Debug.Log($"Amount Of Action Points Spend Saved as Action = {amount}");
+        Debug.Log($"Amount Of Action Points Spend Saved as Action = {amount}, while turnAction count is {turnActions.Count}");
     }
     private void RecordKilledPawn(PawnMovement pawn)
     {
         turnActions[turnActions.Count - 1].KilledPawns.Add(pawn);
+        Debug.Log($"Record KilledPawn, while turnAction count is [{turnActions.Count}]");
+
     }
     private void RecordPushedObject(IPushable pushedObj)
     {
         turnActions[turnActions.Count-1].PushedObjects.Add(pushedObj);
+        Debug.Log($"Record PushedObject, while turnAction count is [{turnActions.Count}]");
     }
     public void ClearTurnActions()
     {
@@ -666,22 +689,34 @@ public bool TryPush(Vector3 direction)
 
         float resetDuration = GameManager.Instance.resetDuration;
 
-        UndoMove(resetDuration);
+        Debug.Log($"{this.name} pawn Undo Push Object; IsDead [{isDead}]" +
+            $"; ");
+
+        UndoMove(resetDuration, true);
     }
 
-    public void UndoMove(float resetDuration)
+    public string GetPushableName()
+    {
+        return this.name;
+    }
+
+    public void UndoMove(float resetDuration, bool forceUndo = false)
     {
         PawnAction lastAction = GetLastAction();
-        if (lastAction == null) return;
+
+        if (lastAction == null)
+            return;
+
+        if (!lastAction.isPlayerAction && !forceUndo) return;
 
         if (currentMovement != null)
         {
             StopCoroutine(currentMovement);
         }
 
-        UpdateCubeOccupation(this.transform.position, false);
-
         currentMovement = StartCoroutine(ResetPosition(resetDuration, lastAction.LastPosition, lastAction.LastRotation));
+
+        Debug.Log($"Pawn {this.name} was pressed by Undo Move");
     }
 
     #endregion

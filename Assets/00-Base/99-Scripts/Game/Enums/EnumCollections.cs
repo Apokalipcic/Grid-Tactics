@@ -28,6 +28,7 @@ public class WinCondition
 
 public class PawnAction
 {
+    public bool isPlayerAction = false;
     public Vector3 LastPosition { get; set; }
     public Quaternion LastRotation { get; set; }
     public int ActionPointsSpent { get; set; }
