@@ -3329,6 +3329,190 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 437172352}
   m_CullTransparentMesh: 1
+--- !u!1001 &437395439
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 695644923112354607, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: anim
+      value: 
+      objectReference: {fileID: 437395442}
+    - target: {fileID: 695644923112354607, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: gridController
+      value: 
+      objectReference: {fileID: 889870662}
+    - target: {fileID: 695644923112354607, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: turnActions.Array.size
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 866378961277500540, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2489528005662384515, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_Name
+      value: Enemy Pawn (5)
+      objectReference: {fileID: 0}
+    - target: {fileID: 2489528005662384515, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2657885385667302896, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2657885385667302896, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2657885385667302896, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2657885385667302896, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2657885385667302896, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2657885385667302896, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2657885385667302896, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2657885385667302896, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2657885385667302896, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2657885385667302896, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2657885385667302896, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6695065736736599745, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: gridController
+      value: 
+      objectReference: {fileID: 889870662}
+    - target: {fileID: 6695065736736599745, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: actionPointsToUse
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 6695065736736599745, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: targetDestination.x
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6695065736736599745, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: targetDestination.z
+      value: 6
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2489528005662384515, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 437395443}
+    - targetCorrespondingSourceObject: {fileID: 2489528005662384515, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 437395442}
+  m_SourcePrefab: {fileID: 100100000, guid: a939af242d21f4c40b0e257744a75f95, type: 3}
+--- !u!1 &437395440 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2489528005662384515, guid: a939af242d21f4c40b0e257744a75f95,
+    type: 3}
+  m_PrefabInstance: {fileID: 437395439}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &437395441 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 695644923112354607, guid: a939af242d21f4c40b0e257744a75f95,
+    type: 3}
+  m_PrefabInstance: {fileID: 437395439}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 437395440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00c5f180f247644439079bbe4978166f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!95 &437395442
+Animator:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 437395440}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 2fb182adc936fc549879ade908ac58ff, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &437395443
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 437395440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a484e9a2248eb146bd4e73e9831d95c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetDestination: {x: 2, y: 0, z: 6}
+  actionPointsToUse: 3
+  canMove: 1
+  isPatrolling: 1
+  pawnMovement: {fileID: 437395441}
+  gridController: {fileID: 889870662}
+  debug: 1
 --- !u!1 &437492216
 GameObject:
   m_ObjectHideFlags: 0
@@ -4844,6 +5028,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player Pawn (3)
       objectReference: {fileID: 0}
+    - target: {fileID: 8773591159057535546, guid: 1fc8c5ee80c96484bb89273f3376f446,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -5821,6 +6010,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Player Pawn (2)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8773591159057535546, guid: 1fc8c5ee80c96484bb89273f3376f446,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -7336,6 +7530,11 @@ PrefabInstance:
       propertyPath: gridController
       value: 
       objectReference: {fileID: 889870662}
+    - target: {fileID: 695644923112354607, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: turnActions.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 866378961277500540, guid: a939af242d21f4c40b0e257744a75f95,
         type: 3}
       propertyPath: m_Enabled
@@ -7406,6 +7605,21 @@ PrefabInstance:
       propertyPath: m_ConstrainProportionsScale
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 6695065736736599745, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: gridController
+      value: 
+      objectReference: {fileID: 889870662}
+    - target: {fileID: 6695065736736599745, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: targetDestination.x
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 6695065736736599745, guid: a939af242d21f4c40b0e257744a75f95,
+        type: 3}
+      propertyPath: targetDestination.z
+      value: 6
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -7471,11 +7685,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetDestination: {x: 2, y: 0, z: 6}
-  ActionPointsToUse: 3
+  actionPointsToUse: 3
   canMove: 1
   isPatrolling: 1
   pawnMovement: {fileID: 971547832}
   gridController: {fileID: 889870662}
+  debug: 1
 --- !u!1 &981796658
 GameObject:
   m_ObjectHideFlags: 0
@@ -9828,6 +10043,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player Pawn (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 8773591159057535546, guid: 1fc8c5ee80c96484bb89273f3376f446,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -10876,6 +11096,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Player Pawn (6)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8773591159057535546, guid: 1fc8c5ee80c96484bb89273f3376f446,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -11998,6 +12223,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Player Pawn (5)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8773591159057535546, guid: 1fc8c5ee80c96484bb89273f3376f446,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -13863,6 +14093,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player Pawn (4)
       objectReference: {fileID: 0}
+    - target: {fileID: 8773591159057535546, guid: 1fc8c5ee80c96484bb89273f3376f446,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -15497,6 +15732,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Rock (Pushable)
       objectReference: {fileID: 0}
+    - target: {fileID: 1543839027320814589, guid: 48e3e5d358918c349b06998f142a9d47,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4584480944396313762, guid: 48e3e5d358918c349b06998f142a9d47,
         type: 3}
       propertyPath: gridController
@@ -15597,6 +15837,7 @@ SceneRoots:
   - {fileID: 1524406529}
   - {fileID: 1639437933}
   - {fileID: 971547830}
+  - {fileID: 437395439}
   - {fileID: 889870661}
   - {fileID: 425352177294074206}
   - {fileID: 2353670015518320669}

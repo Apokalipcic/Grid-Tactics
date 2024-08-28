@@ -198,7 +198,7 @@ public class PawnMovement : MonoBehaviour, IPushable
             if (currentCube != null && currentCube.IsOccupied())
             {
                 GameObject occupant = currentCube.GetOccupant();
-                if (occupant.CompareTag("Enemy"))
+                if (!occupant.CompareTag("Neutral"))
                 {
                     PawnMovement enemyAI = occupant.GetComponent<PawnMovement>();
                     if (enemyAI != null)
@@ -237,7 +237,10 @@ public class PawnMovement : MonoBehaviour, IPushable
 
         GameManager.Instance.UseActionPoint();
         isMoving = false;
-        pawnCollider.enabled = true;
+
+        if(tag == "Player")
+            pawnCollider.enabled = true;
+        
         currentMovement = null;
     }
 
@@ -505,7 +508,26 @@ public class PawnMovement : MonoBehaviour, IPushable
         {
             CalculateReachableCells();
         }
-        return cachedPaths.ContainsKey(endPosition) || pushableMoves.Contains(endPosition);
+
+        // Check if it's a cached path or a pushable move
+        if (cachedPaths.ContainsKey(endPosition) || pushableMoves.Contains(endPosition))
+        {
+            return true;
+        }
+
+        // Check if it's an enemy pawn (for AI movement)
+        CubeController targetCube = gridController.GetCellAtPosition(endPosition)?.GetComponent<CubeController>();
+        if (targetCube != null && targetCube.IsOccupied())
+        {
+            GameObject occupant = targetCube.GetOccupant();
+            // Allow moving to enemy pawn position if this pawn is AI-controlled
+            if (this.CompareTag("Enemy") && occupant.CompareTag("Player"))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void ReturnPushObjectOrigin()
@@ -562,7 +584,6 @@ public class PawnMovement : MonoBehaviour, IPushable
         transform.rotation = targetRotation;
 
         isMoving = false;
-        pawnCollider.enabled = true;
 
         ResetPawn(resetOrigin);
     }

@@ -7,27 +7,35 @@ public class AStarPathfinder
     private GridController gridController;
     private PawnMovement pawnMovement;
 
-    public AStarPathfinder(GridController gridController, PawnMovement pawnMovement)
+    private bool debug = true; // Add this field
+
+    public AStarPathfinder(GridController gridController, PawnMovement pawnMovement, bool debugMode = false)
     {
         this.gridController = gridController;
         this.pawnMovement = pawnMovement;
+        this.debug = debugMode;
     }
 
     #region A* Algorithm
-    public List<Vector3> FindPath(Vector3 start, Vector3 end, int maxDistance)
+    public List<Vector3> FindPath(Vector3 start, Vector3 end)
     {
+        OnDebug($"FindPath called: Start={start}, End={end}");
         var startNode = new PathNode { Position = gridController.SnapToGrid(start) };
         var endNode = new PathNode { Position = gridController.SnapToGrid(end) };
 
         var openSet = new List<PathNode> { startNode };
         var closedSet = new HashSet<Vector3>();
 
+        int iterations = 0;
         while (openSet.Count > 0)
         {
+            iterations++;
             var currentNode = openSet.OrderBy(n => n.FCost).First();
+            OnDebug($"Iteration {iterations}: Examining node at {currentNode.Position}");
 
             if (currentNode.Position == endNode.Position)
             {
+                OnDebug("Path found to destination");
                 return ReconstructPath(currentNode);
             }
 
@@ -36,11 +44,13 @@ public class AStarPathfinder
 
             foreach (var neighbor in GetNeighbors(currentNode))
             {
-                if (closedSet.Contains(neighbor.Position)) continue;
+                if (closedSet.Contains(neighbor.Position))
+                {
+                    OnDebug($"Neighbor at {neighbor.Position} already in closed set");
+                    continue;
+                }
 
                 int newCostToNeighbor = currentNode.GCost + GetMoveCost(currentNode.Position, neighbor.Position);
-
-                if (newCostToNeighbor > maxDistance) continue;
 
                 if (!openSet.Contains(neighbor) || newCostToNeighbor < neighbor.GCost)
                 {
@@ -51,12 +61,20 @@ public class AStarPathfinder
                     if (!openSet.Contains(neighbor))
                     {
                         openSet.Add(neighbor);
+                        OnDebug($"Added neighbor at {neighbor.Position} to open set");
                     }
                 }
             }
+
+            if (iterations > 1000)
+            {
+                OnDebug("Pathfinding exceeded 1000 iterations, stopping to prevent infinite loop", "Warning");
+                break;
+            }
         }
 
-        return null; // No path found
+        OnDebug("No path found", "Warning");
+        return null;
     }
 
     private List<Vector3> ReconstructPath(PathNode endNode)
@@ -77,12 +95,18 @@ public class AStarPathfinder
     private IEnumerable<PathNode> GetNeighbors(PathNode node)
     {
         List<Vector3> neighborPositions = gridController.GetValidNeighbors(node.Position, pawnMovement.CanMoveDiagonally());
+        OnDebug($"Getting neighbors for node at {node.Position}. Found {neighborPositions.Count} potential neighbors.");
 
         foreach (Vector3 pos in neighborPositions)
         {
             if (IsValidMove(node.Position, pos))
             {
+                OnDebug($"Valid move from {node.Position} to {pos}");
                 yield return new PathNode { Position = pos };
+            }
+            else
+            {
+                OnDebug($"Invalid move from {node.Position} to {pos}");
             }
         }
     }
@@ -91,45 +115,32 @@ public class AStarPathfinder
     {
         CubeController toCube = gridController.GetCellAtPosition(to)?.GetComponent<CubeController>();
 
-        if (toCube == null) return false;
+        if (toCube == null)
+        {
+            OnDebug($"No cube found at position {to}");
+            return false;
+        }
 
         if (toCube.IsOccupied())
         {
             GameObject occupant = toCube.GetOccupant();
+            OnDebug($"Cube at {to} is occupied by {occupant.name} with tag {occupant.tag}");
 
-            if (pawnMovement.tag == "Player")
+            if (pawnMovement.CompareTag("Enemy"))
             {
-
-                // Check if the occupant is an enemy
-                if (occupant.CompareTag("Enemy"))
-                {
-                    // Consider it a valid move if it's occupied by an enemy, regardless of isWalkable
-                    return true;
-                }
-                else
-                {
-                    // For non-enemy occupants, consider it an invalid move
-                    return false;
-                }
+                bool isValid = occupant.CompareTag("Player") || toCube.isWalkable;
+                OnDebug($"Enemy pawn moving to {to}. Is valid: {isValid}");
+                return isValid;
             }
-            else if (pawnMovement.tag == "Enemy")
+            else if (pawnMovement.CompareTag("Player"))
             {
-
-                // Check if the occupant is an enemy
-                if (occupant.CompareTag("Player"))
-                {
-                    // Consider it a valid move if it's occupied by an enemy, regardless of isWalkable
-                    return true;
-                }
-                else
-                {
-                    // For non-enemy occupants, consider it an invalid move
-                    return false;
-                }
+                bool isValid = occupant.CompareTag("Enemy") || toCube.isWalkable;
+                OnDebug($"Player pawn moving to {to}. Is valid: {isValid}");
+                return isValid;
             }
         }
 
-        // For unoccupied cells, respect the isWalkable property
+        OnDebug($"Cube at {to} is not occupied. Is walkable: {toCube.isWalkable}");
         return toCube.isWalkable;
     }
 
@@ -228,4 +239,26 @@ public class AStarPathfinder
         public bool IsPushMove;
     }
     #endregion
+
+    private void OnDebug(string message, string type = "Log")
+    {
+        if (debug)
+        {
+            switch (type)
+            {
+                case "Log":
+                    Debug.Log($"[AStarPathfinder] {message}");
+                    break;
+                case "Warning":
+                    Debug.LogWarning($"[AStarPathfinder] {message}");
+                    break;
+                case "Error":
+                    Debug.LogError($"[AStarPathfinder] {message}");
+                    break;
+                default:
+                    Debug.Log($"[AStarPathfinder] {message}");
+                    break;
+            }
+        }
+    }
 }

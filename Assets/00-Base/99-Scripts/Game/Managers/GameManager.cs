@@ -207,34 +207,36 @@ public class GameManager : MonoBehaviour
         CurrentState = GameState.EnemyAction;
         currentEnemyActions = maxEnemyActions;
         currentAIIndex = 0;
-        UpdateUI();
-        ExecuteEnemyTurn();
-    }
-    private void ExecuteEnemyTurn()
-    {
-        AIController aiController = EnemyPawns[currentAIIndex].GetComponent<AIController>();
 
-        if (aiController != null)
+        foreach (PawnMovement pawn in EnemyPawns)
         {
-           currentAIPontsToUse = aiController.ExecuteTurn();
+            pawn.ClearTurnActions();
         }
-        else
-         OnDebug($"AICotroller not attached to EnemyPawn [{EnemyPawns[currentAIIndex].name}]", "Error");
 
-
+        UpdateUI();
+        StartCoroutine(ExecuteEnemyTurns());
     }
-
-    public void CheckAIControllerMovement()
+    private IEnumerator ExecuteEnemyTurns()
     {
-        if (currentAIPontsToUse > 0)
-            return;
+        foreach (PawnMovement pawn in EnemyPawns)
+        {
+            AIController aiController = pawn.GetComponent<AIController>();
+            if (aiController != null)
+            {
+                int actionPointsUsed = aiController.ExecuteTurn();
+                currentEnemyActions -= actionPointsUsed;
+                while (pawn.IsMoving())
+                {
+                    yield return null;
+                }
+                if (currentEnemyActions <= 0) break;
+            }
+        }
 
-        currentAIIndex++;
-
-        if (currentAIIndex >= EnemyPawns.Count)
-            EndCurrentTurn();
-        else
-            ExecuteEnemyTurn();
+        if (currentEnemyActions > 0)
+        {
+            EndCurrentTurn(); // Move to next turn if actions remain
+        }
     }
 
     private void StartNeutralTurn()
@@ -311,10 +313,6 @@ public class GameManager : MonoBehaviour
                 {
                     currentEnemyActions -= consume ? 1 : -1;
                     UpdateUI();
-
-                    currentAIPontsToUse--;
-
-                    CheckAIControllerMovement();
 
                     if (currentEnemyActions == 0) EndCurrentTurn();
                 }
