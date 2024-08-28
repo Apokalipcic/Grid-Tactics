@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -19,6 +20,9 @@ public class AIController : MonoBehaviour
     [SerializeField]
     [Tooltip("Whether the AI should patrol between origin and target")]
     private bool isPatrolling = false;
+    [SerializeField]
+    [Tooltip("Delay in seconds before AI makes its move")]
+    private float moveDelay = 1f;
 
     [Header("Components")]
     [SerializeField] private PawnMovement pawnMovement;
@@ -55,10 +59,10 @@ public class AIController : MonoBehaviour
     #endregion
 
     #region Public Methods
-    public int ExecuteTurn()
+    public IEnumerator ExecuteTurn()
     {
-        if (!canMove)
-            return 0;
+        if (!canMove || pawnMovement.GetIsDead())
+            yield break;
 
         Debug.Log($"Executing turn for AI pawn [{name}]");
 
@@ -67,13 +71,32 @@ public class AIController : MonoBehaviour
 
         if (pawnMovement.IsValidMove(bestMove))
         {
+            // Highlight the chosen move
+            CubeController nextCell = GetCellAtPosition(bestMove);
+            if (nextCell != null)
+            {
+                nextCell.ChangeHighlightEnemyVFX(true);
+            }
+
+            Debug.Log($"AI {name} will move to {bestMove} after {moveDelay} seconds");
+            yield return new WaitForSeconds(moveDelay);
+
+            // Clear the highlight
+            if (nextCell != null)
+            {
+                nextCell.ChangeHighlightEnemyVFX(false);
+            }
+
             Debug.Log($"AI {name} moving to {bestMove}");
             pawnMovement.MovePath(bestMove);
-            return CalculateActionPointsUsed(bestMove);
-        }
+            yield return new WaitUntil(() => !pawnMovement.IsMoving());
 
-        Debug.Log($"AI {name} couldn't find a valid move");
-        return 0;
+            GameManager.Instance.UseActionPoint(true);
+        }
+        else
+        {
+            Debug.Log($"AI {name} couldn't find a valid move");
+        }
     }
 
     public void SetCanMove(bool state)
@@ -99,13 +122,19 @@ public class AIController : MonoBehaviour
     private Vector3 CalculateBestMove()
     {
         List<Vector3> validMoves = pawnMovement.GetValidMoves();
-        return validMoves.OrderBy(move => Vector3.Distance(move, currentPreferableDestination)).FirstOrDefault();
+
+        if (validMoves.Count == 0)
+        {
+            Debug.Log($"AI {name} has no valid moves");
+            return transform.position; // Return current position if no valid moves
+        }
+
+        return validMoves.OrderBy(move => Vector3.Distance(move, currentPreferableDestination)).First();
     }
 
-    private int CalculateActionPointsUsed(Vector3 move)
+    private CubeController GetCellAtPosition(Vector3 position)
     {
-        float distance = Vector3.Distance(transform.position, move);
-        return Mathf.Min(Mathf.CeilToInt(distance / gridController.cellSize), maxActionPointsPerTurn);
+        return gridController.GetCellAtPosition(position)?.GetComponent<CubeController>();
     }
     #endregion
 }

@@ -87,8 +87,11 @@ public class AStarPathfinder
         }
     }
 
+
     private bool IsValidMove(Vector3 from, Vector3 to)
     {
+        if (from == to) return false;
+
         CubeController toCube = gridController.GetCellAtPosition(to)?.GetComponent<CubeController>();
 
         if (toCube == null) return false;
@@ -136,18 +139,34 @@ public class AStarPathfinder
     private int GetMoveCost(Vector3 from, Vector3 to)
     {
         CubeController toCube = gridController.GetCellAtPosition(to)?.GetComponent<CubeController>();
-        if (toCube != null && toCube.IsOccupied())
+        if (toCube == null) return int.MaxValue; // Invalid move
+
+        if (toCube.IsOccupied())
         {
             GameObject occupant = toCube.GetOccupant();
-            if (occupant.CompareTag("Enemy"))
+
+            if (pawnMovement.CompareTag("Player"))
             {
-                // Lower cost for enemy-occupied cells
-                return 1;
+                if (occupant.CompareTag("Enemy"))
+                {
+                    // Prioritize moving towards enemy pawns for player
+                    return 0;
+                }
+            }
+            else if (pawnMovement.CompareTag("Enemy"))
+            {
+                if (occupant.CompareTag("Player"))
+                {
+                    // Prioritize moving towards player pawns for enemy
+                    return 0;
+                }
             }
 
-            // Higher cost for push moves
-            return 2;
+            // Higher cost for occupied cells that are not priority targets
+            return 3;
         }
+
+        // Default cost for unoccupied cells
         return 1;
     }
 
@@ -181,16 +200,14 @@ public class AStarPathfinder
         {
             var currentNode = openSet.OrderBy(n => n.GCost).First();
 
-            if (currentNode.GCost > maxDistance)
-            {
-                openSet.Remove(currentNode);
-                continue;
-            }
-
             openSet.Remove(currentNode);
             closedSet.Add(currentNode.Position);
 
-            reachableCells[currentNode.Position] = ReconstructPath(currentNode);
+            // Only add to reachable cells if it's not the starting position
+            if (currentNode.Position != startNode.Position)
+            {
+                reachableCells[currentNode.Position] = ReconstructPath(currentNode);
+            }
 
             foreach (var neighbor in GetNeighbors(currentNode))
             {

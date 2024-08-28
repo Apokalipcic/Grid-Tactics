@@ -208,33 +208,33 @@ public class GameManager : MonoBehaviour
         currentEnemyActions = maxEnemyActions;
         currentAIIndex = 0;
         UpdateUI();
-        ExecuteEnemyTurn();
+        StartCoroutine(ExecuteEnemyTurns());
     }
-    private void ExecuteEnemyTurn()
+    private IEnumerator ExecuteEnemyTurns()
     {
-        AIController aiController = EnemyPawns[currentAIIndex].GetComponent<AIController>();
-
-        if (aiController != null)
+        foreach (PawnMovement enemyPawn in EnemyPawns)
         {
-           currentAIPontsToUse = aiController.ExecuteTurn();
+            AIController aiController = enemyPawn.GetComponent<AIController>();
+            if (aiController != null)
+            {
+                yield return StartCoroutine(aiController.ExecuteTurn());
+
+                // Wait for a short delay between enemy turns for better visualization
+                yield return new WaitForSeconds(0.5f);
+            }
+            else
+            {
+                OnDebug($"AIController not attached to EnemyPawn [{enemyPawn.name}]", "Error");
+            }
+
+            // Check if we should end the enemy turn (e.g., out of action points)
+            if (currentEnemyActions <= 0)
+            {
+                break;
+            }
         }
-        else
-         OnDebug($"AICotroller not attached to EnemyPawn [{EnemyPawns[currentAIIndex].name}]", "Error");
 
-
-    }
-
-    public void CheckAIControllerMovement()
-    {
-        if (currentAIPontsToUse > 0)
-            return;
-
-        currentAIIndex++;
-
-        if (currentAIIndex >= EnemyPawns.Count)
-            EndCurrentTurn();
-        else
-            ExecuteEnemyTurn();
+        EndCurrentTurn();
     }
 
     private void StartNeutralTurn()
@@ -313,8 +313,6 @@ public class GameManager : MonoBehaviour
                     UpdateUI();
 
                     currentAIPontsToUse--;
-
-                    CheckAIControllerMovement();
 
                     if (currentEnemyActions == 0) EndCurrentTurn();
                 }

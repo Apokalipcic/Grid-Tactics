@@ -14,8 +14,8 @@ GameObject:
   - component: {fileID: 695644923112354607}
   - component: {fileID: 866378961277500540}
   - component: {fileID: 85114072910863053}
-  - component: {fileID: 6695065736736599745}
-  - component: {fileID: 5583545562206741087}
+  - component: {fileID: 2514157944028114507}
+  - component: {fileID: 7021070319879917389}
   m_Layer: 0
   m_Name: Enemy Pawn
   m_TagString: Enemy
@@ -112,7 +112,7 @@ MonoBehaviour:
   canChainPush: 1
   pushSpeed: 2
   turnActions: []
-  anim: {fileID: 5583545562206741087}
+  anim: {fileID: 7021070319879917389}
 --- !u!65 &866378961277500540
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -161,7 +161,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &6695065736736599745
+--- !u!114 &2514157944028114507
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -174,12 +174,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetDestination: {x: 2, y: 0, z: 6}
-  ActionPointsToUse: 3
+  maxActionPointsPerTurn: 3
   canMove: 1
   isPatrolling: 1
+  moveDelay: 1
   pawnMovement: {fileID: 695644923112354607}
   gridController: {fileID: 0}
---- !u!95 &5583545562206741087
+--- !u!95 &7021070319879917389
 Animator:
   serializedVersion: 5
   m_ObjectHideFlags: 0

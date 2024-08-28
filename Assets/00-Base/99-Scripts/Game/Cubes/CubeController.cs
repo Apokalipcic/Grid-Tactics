@@ -13,6 +13,9 @@ public class CubeController : MonoBehaviour
     [Header("Occupation")]
     [SerializeField] private GameObject occupant;
 
+    [Header("Enemy")]
+    [SerializeField] Color enemyColorVFX = Color.red;
+
     [Header("Debug")]
     [SerializeField] bool activateThisObject = true;
 
@@ -95,6 +98,7 @@ public class CubeController : MonoBehaviour
     {
         if (state)
         {
+            mainModule.startColor = enemyColorVFX;
             cubeHighlightVFX.Play();
         }
         else

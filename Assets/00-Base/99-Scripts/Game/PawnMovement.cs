@@ -601,6 +601,11 @@ public class PawnMovement : MonoBehaviour, IPushable
         return isMoving;
     }
 
+    public bool GetIsDead()
+    {
+        return isDead;
+    }
+
     public void ResetPawn(bool resetOrigin = false)
     {
         PawnAction lastAction = GetLastAction(0, true);
