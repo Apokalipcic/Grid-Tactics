@@ -1,7 +1,6 @@
 using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
-using TMPro;
+using System.Linq;
 
 [RequireComponent(typeof(PawnMovement))]
 public class AIController : MonoBehaviour
@@ -10,56 +9,71 @@ public class AIController : MonoBehaviour
     [Header("Destination")]
     [SerializeField] private Vector3 targetDestination;
 
-    [Header("Variables")]
-    [SerializeField] private int ActionPointsToUse = 3;
-    [SerializeField] private bool canMove = true;
-    [SerializeField] private bool isPatrolling = false;
-    
+    [Header("Movement Properties")]
+    [SerializeField]
+    [Tooltip("Maximum number of action points to use per turn")]
+    private int maxActionPointsPerTurn = 3;
+    [SerializeField]
+    [Tooltip("Whether the AI can move")]
+    private bool canMove = true;
+    [SerializeField]
+    [Tooltip("Whether the AI should patrol between origin and target")]
+    private bool isPatrolling = false;
+
     [Header("Components")]
     [SerializeField] private PawnMovement pawnMovement;
     [SerializeField] private GridController gridController;
 
     private Vector3 originPosition;
-    private int freeActionPoints = 0;
-    private Vector3 currentPreferableDestination = Vector3.zero;
+    private Vector3 currentPreferableDestination;
     #endregion
 
     #region Unity Lifecycle
     private void Start()
     {
+        InitializeComponents();
+        SetupPositions();
+    }
+
+    private void InitializeComponents()
+    {
         if (pawnMovement == null)
-        {
             pawnMovement = GetComponent<PawnMovement>();
-        }
 
-        if(gridController == null)
-            gridController = FindAnyObjectByType<GridController>();
+        if (gridController == null)
+            gridController = FindObjectOfType<GridController>();
 
+        pawnMovement.SetMovementRange(maxActionPointsPerTurn);
+    }
+
+    private void SetupPositions()
+    {
         originPosition = gridController.SnapToGrid(transform.position);
-
         targetDestination = gridController.SnapToGrid(targetDestination);
-
         currentPreferableDestination = targetDestination;
-        
-        pawnMovement.SetMovementRange(ActionPointsToUse);
     }
     #endregion
 
     #region Public Methods
     public int ExecuteTurn()
     {
-        Debug.Log($"Trying to move AI pawn [{this.name}]");
+        if (!canMove)
+            return 0;
 
-        if (targetDestination == gridController.SnapToGrid(this.transform.position) && isPatrolling)
-            currentPreferableDestination = originPosition;
-       
-        if (pawnMovement.IsValidMove(currentPreferableDestination))
+        Debug.Log($"Executing turn for AI pawn [{name}]");
+
+        UpdatePreferableDestination();
+        Vector3 bestMove = CalculateBestMove();
+
+        if (pawnMovement.IsValidMove(bestMove))
         {
-            Debug.Log("(AI) TryMovePawn: Valid move, executing MovePath");
-            pawnMovement.MovePath(currentPreferableDestination);
+            Debug.Log($"AI {name} moving to {bestMove}");
+            pawnMovement.MovePath(bestMove);
+            return CalculateActionPointsUsed(bestMove);
         }
 
-        return ActionPointsToUse;
+        Debug.Log($"AI {name} couldn't find a valid move");
+        return 0;
     }
 
     public void SetCanMove(bool state)
@@ -73,5 +87,25 @@ public class AIController : MonoBehaviour
     }
     #endregion
 
+    #region Private Methods
+    private void UpdatePreferableDestination()
+    {
+        if (isPatrolling && gridController.SnapToGrid(transform.position) == targetDestination)
+            currentPreferableDestination = originPosition;
+        else if (isPatrolling && gridController.SnapToGrid(transform.position) == originPosition)
+            currentPreferableDestination = targetDestination;
+    }
 
+    private Vector3 CalculateBestMove()
+    {
+        List<Vector3> validMoves = pawnMovement.GetValidMoves();
+        return validMoves.OrderBy(move => Vector3.Distance(move, currentPreferableDestination)).FirstOrDefault();
+    }
+
+    private int CalculateActionPointsUsed(Vector3 move)
+    {
+        float distance = Vector3.Distance(transform.position, move);
+        return Mathf.Min(Mathf.CeilToInt(distance / gridController.cellSize), maxActionPointsPerTurn);
+    }
+    #endregion
 }
