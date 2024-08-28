@@ -97,16 +97,35 @@ public class AStarPathfinder
         {
             GameObject occupant = toCube.GetOccupant();
 
-            // Check if the occupant is an enemy
-            if (occupant.CompareTag("Enemy"))
+            if (pawnMovement.tag == "Player")
             {
-                // Consider it a valid move if it's occupied by an enemy, regardless of isWalkable
-                return true;
+
+                // Check if the occupant is an enemy
+                if (occupant.CompareTag("Enemy"))
+                {
+                    // Consider it a valid move if it's occupied by an enemy, regardless of isWalkable
+                    return true;
+                }
+                else
+                {
+                    // For non-enemy occupants, consider it an invalid move
+                    return false;
+                }
             }
-            else
+            else if (pawnMovement.tag == "Enemy")
             {
-                // For non-enemy occupants, consider it an invalid move
-                return false;
+
+                // Check if the occupant is an enemy
+                if (occupant.CompareTag("Player"))
+                {
+                    // Consider it a valid move if it's occupied by an enemy, regardless of isWalkable
+                    return true;
+                }
+                else
+                {
+                    // For non-enemy occupants, consider it an invalid move
+                    return false;
+                }
             }
         }
 

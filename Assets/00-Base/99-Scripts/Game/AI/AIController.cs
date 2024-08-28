@@ -1,19 +1,27 @@
 using UnityEngine;
-using System.Collections.Generic;
 using System.Collections;
+using System.Collections.Generic;
+using TMPro;
 
 [RequireComponent(typeof(PawnMovement))]
 public class AIController : MonoBehaviour
 {
     #region Variables
-    [SerializeField] private PawnMovement pawnMovement;
-    [SerializeField] private List<Transform> movementPath = new List<Transform>();
+    [Header("Destination")]
+    [SerializeField] private Vector3 targetDestination;
+
+    [Header("Variables")]
+    [SerializeField] private int ActionPointsToUse = 3;
     [SerializeField] private bool canMove = true;
     [SerializeField] private bool isPatrolling = false;
-    [SerializeField] private float waitTimeBeforeMoving = 0.5f;
+    
+    [Header("Components")]
+    [SerializeField] private PawnMovement pawnMovement;
+    [SerializeField] private GridController gridController;
 
-    private int currentPathIndex = 0;
-    private bool isMovingForward = true;
+    private Vector3 originPosition;
+    private int freeActionPoints = 0;
+    private Vector3 currentPreferableDestination = Vector3.zero;
     #endregion
 
     #region Unity Lifecycle
@@ -24,33 +32,34 @@ public class AIController : MonoBehaviour
             pawnMovement = GetComponent<PawnMovement>();
         }
 
+        if(gridController == null)
+            gridController = FindAnyObjectByType<GridController>();
+
+        originPosition = gridController.SnapToGrid(transform.position);
+
+        targetDestination = gridController.SnapToGrid(targetDestination);
+
+        currentPreferableDestination = targetDestination;
+        
+        pawnMovement.SetMovementRange(ActionPointsToUse);
     }
     #endregion
 
     #region Public Methods
-    public void ExecuteTurn()
+    public int ExecuteTurn()
     {
-        if (GameManager.Instance.UseActionPoint())
-        {
-            if (canMove && movementPath.Count > 0)
-            {
-                StartCoroutine(MoveAlongPath());
-            }
-            else
-            {
-                EndTurn();
-            }
-        }
-        else
-        {
-            EndTurn();
-        }
-    }
+        Debug.Log($"Trying to move AI pawn [{this.name}]");
 
-    public void SetMovementPath(List<Transform> path)
-    {
-        movementPath = path;
-        currentPathIndex = 0;
+        if (targetDestination == gridController.SnapToGrid(this.transform.position) && isPatrolling)
+            currentPreferableDestination = originPosition;
+       
+        if (pawnMovement.IsValidMove(currentPreferableDestination))
+        {
+            Debug.Log("(AI) TryMovePawn: Valid move, executing MovePath");
+            pawnMovement.MovePath(currentPreferableDestination);
+        }
+
+        return ActionPointsToUse;
     }
 
     public void SetCanMove(bool state)
@@ -65,93 +74,4 @@ public class AIController : MonoBehaviour
     #endregion
 
 
-    #region Private Methods
-    private IEnumerator MoveAlongPath()
-    {
-        if (currentPathIndex < 0 || currentPathIndex >= movementPath.Count)
-        {
-            EndTurn();
-            yield break;
-        }
-
-        Vector3 nextPosition = movementPath[currentPathIndex].position;
-
-        // Highlight the next move
-        CubeController nextCell = GetCellAtPosition(nextPosition);
-        if (nextCell != null)
-        {
-            nextCell.ChangeHighlightEnemyVFX(true);
-        }
-
-        yield return new WaitForSeconds(waitTimeBeforeMoving); // Wait for a second to show the highlight
-
-        // Move the pawn
-        pawnMovement.MovePath(nextPosition);
-
-        // Wait for the move to complete
-        while (pawnMovement.IsMoving())
-        {
-            yield return null;
-        }
-
-        // Clear the highlight
-        if (nextCell != null)
-        {
-            nextCell.ChangeHighlightEnemyVFX(false);
-        }
-
-        // Update the path index
-        UpdatePathIndex();
-
-        EndTurn();
-    }
-
-    private void UpdatePathIndex()
-    {
-        if (isPatrolling)
-        {
-            if (isMovingForward)
-            {
-                currentPathIndex++;
-                if (currentPathIndex >= movementPath.Count)
-                {
-                    currentPathIndex = movementPath.Count - 2;
-                    isMovingForward = false;
-                }
-            }
-            else
-            {
-                currentPathIndex--;
-                if (currentPathIndex < 0)
-                {
-                    currentPathIndex = 1;
-                    isMovingForward = true;
-                }
-            }
-        }
-        else
-        {
-            currentPathIndex = (currentPathIndex + 1) % movementPath.Count;
-        }
-    }
-
-    private void EndTurn()
-    {
-        GameManager.Instance.EndCurrentTurn();
-    }
-
-    private CubeController GetCellAtPosition(Vector3 position)
-    {
-        Collider[] colliders = Physics.OverlapSphere(position, 0.1f);
-        foreach (Collider collider in colliders)
-        {
-            CubeController cubeController = collider.GetComponent<CubeController>();
-            if (cubeController != null)
-            {
-                return cubeController;
-            }
-        }
-        return null;
-    }
-    #endregion
 }

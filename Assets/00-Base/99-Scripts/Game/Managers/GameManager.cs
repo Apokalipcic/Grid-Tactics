@@ -74,6 +74,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] bool debug = false;
 
     private int currentMoveNumber = 0;
+    private int currentAIIndex = 0;
+    private int currentAIPontsToUse = 0;
 
     #endregion
 
@@ -204,29 +206,35 @@ public class GameManager : MonoBehaviour
     {
         CurrentState = GameState.EnemyAction;
         currentEnemyActions = maxEnemyActions;
+        currentAIIndex = 0;
         UpdateUI();
-        StartCoroutine(ExecuteEnemyTurns());
+        ExecuteEnemyTurn();
     }
-    private IEnumerator ExecuteEnemyTurns()
+    private void ExecuteEnemyTurn()
     {
-        foreach (PawnMovement pawn in EnemyPawns)
-        {
-            AIController aiController = pawn.GetComponent<AIController>();
-            if (aiController != null)
-            {
-                aiController.ExecuteTurn();
-                while (currentEnemyActions > 0 && pawn.IsMoving())
-                {
-                    yield return null;
-                }
-                if (currentEnemyActions <= 0) break;
-            }
-        }
+        AIController aiController = EnemyPawns[currentAIIndex].GetComponent<AIController>();
 
-        if (currentEnemyActions > 0)
+        if (aiController != null)
         {
-            EndCurrentTurn(); // Move to next turn if actions remain
+           currentAIPontsToUse = aiController.ExecuteTurn();
         }
+        else
+         OnDebug($"AICotroller not attached to EnemyPawn [{EnemyPawns[currentAIIndex].name}]", "Error");
+
+
+    }
+
+    public void CheckAIControllerMovement()
+    {
+        if (currentAIPontsToUse > 0)
+            return;
+
+        currentAIIndex++;
+
+        if (currentAIIndex >= EnemyPawns.Count)
+            EndCurrentTurn();
+        else
+            ExecuteEnemyTurn();
     }
 
     private void StartNeutralTurn()
@@ -258,7 +266,7 @@ public class GameManager : MonoBehaviour
     public void EndCurrentTurn()
     {
         GameState oldState = CurrentState;
-
+        OnDebug($"OldState {oldState} ended.");
         switch (CurrentState)
         {
             case GameState.PlayerAction:
@@ -272,7 +280,7 @@ public class GameManager : MonoBehaviour
                 break;
         }
 
-        OnDebug($"OldState {oldState} ended, new state {CurrentState} started");
+
     }
     #endregion
 
@@ -286,7 +294,7 @@ public class GameManager : MonoBehaviour
         currentPlayerActions += amount;
         userInterface.SetPlayerActionPonts(currentPlayerActions);
     }
-    public bool UseActionPoint(bool consume = true)
+    public void UseActionPoint(bool consume = true)
     {
         switch (CurrentState)
         {
@@ -296,7 +304,6 @@ public class GameManager : MonoBehaviour
                     currentPlayerActions -= consume ? 1: -1;
                     userInterface.UpdatePlayerActionPoint(consume);
                     if (currentPlayerActions == 0) EndCurrentTurn();
-                    return true;
                 }
                 break;
             case GameState.EnemyAction:
@@ -304,14 +311,18 @@ public class GameManager : MonoBehaviour
                 {
                     currentEnemyActions -= consume ? 1 : -1;
                     UpdateUI();
+
+                    currentAIPontsToUse--;
+
+                    CheckAIControllerMovement();
+
                     if (currentEnemyActions == 0) EndCurrentTurn();
-                    return true;
                 }
                 break;
             case GameState.NeutralAction:
                 break;
         }
-        return false;
+        
     }
 
     public int GetAmountOfAvailableActionPoints()
@@ -491,10 +502,16 @@ public class GameManager : MonoBehaviour
         Debug.Log($"Neutral Pawns: {NeutralPawns.Count}");
     }
 
-    private void OnDebug(string message)
+    private void OnDebug(string message, string type = "Log")
     {
         if(debug)
-            Debug.Log(message);
+            if(type == "Log")
+                Debug.Log(message);
+            else if(type == "Warning")
+                Debug.LogWarning(message);
+            else if(type == "Error")
+                Debug.LogError(message);
+
     }
     #endregion
 }

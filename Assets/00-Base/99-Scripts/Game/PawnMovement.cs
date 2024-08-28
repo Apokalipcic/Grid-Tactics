@@ -167,6 +167,9 @@ public class PawnMovement : MonoBehaviour, IPushable
         UpdateCubeOccupation(transform.position, false);
 
         bool isFirstStep = true;
+        bool isLastStep = false;
+
+        int len = path.Count;
 
         foreach (Vector3 cellPosition in path)
         {
@@ -213,18 +216,26 @@ public class PawnMovement : MonoBehaviour, IPushable
 
 
             // Consume Action Point, but not for the first step
-            if (!isFirstStep)
+            if (!isFirstStep && !isLastStep)
             {
                 GameManager.Instance.UseActionPoint();
                 amountOfActionPointsUsed++;
             }
+            
             isFirstStep = false;
+            len--;
+
+            if (len == 1)
+                isLastStep = true;
         }
+
+        amountOfActionPointsUsed++;
 
         // Occupy the new position
         UpdateCubeOccupation(transform.position, true);
         RecordAmountOfActionPointSpend(amountOfActionPointsUsed);
 
+        GameManager.Instance.UseActionPoint();
         isMoving = false;
         pawnCollider.enabled = true;
         currentMovement = null;
@@ -554,6 +565,10 @@ public class PawnMovement : MonoBehaviour, IPushable
         pawnCollider.enabled = true;
 
         ResetPawn(resetOrigin);
+    }
+    public void SetMovementRange(int newRange)
+    {
+        movementRange = Mathf.Max(0,newRange);
     }
 
     public void SetMovementBuff(int buff)
