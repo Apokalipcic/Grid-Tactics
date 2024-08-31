@@ -99,5 +99,7 @@ EditorBuildSettings:
     path: Assets/99-Misc/Assets/Epic Toon FX/Demo/Scenes/etfx_wind.unity
     guid: 565750a970c487a4280f95fd0ed4f9fc
   m_configObjects:
+    com.unity.adaptiveperformance.loader_settings: {fileID: 11400000, guid: 8a2989a71bffc5041a55f1eee99cf392,
+      type: 2}
     com.unity.adaptiveperformance.simulator.provider_settings: {fileID: 11400000,
       guid: b5105802c30514d488142bac16fd9917, type: 2}

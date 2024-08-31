@@ -48,8 +48,8 @@ public class PawnMovement : MonoBehaviour, IPushable
     private HashSet<Vector3> pushableMoves;
     private CubeController currentOccupiedCell;
 
-    [Header("Booster Properties")]
-    private string currentBooster = "None";
+    //[Header("Booster Properties")]
+    //private string currentBooster = "None";
     #endregion
 
     #region Initialization
@@ -714,6 +714,7 @@ public class PawnMovement : MonoBehaviour, IPushable
     public void ClearTurnActions()
     {
         turnActions.Clear();
+        amountOfActionPointsUsed = 0;
     }
 
     public PawnAction GetLastAction(int moveNumber, bool forceLastAction)

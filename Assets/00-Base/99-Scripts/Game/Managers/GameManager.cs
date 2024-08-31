@@ -74,8 +74,6 @@ public class GameManager : MonoBehaviour
     [SerializeField] bool debug = false;
 
     private int currentMoveNumber = 0;
-    private int currentAIIndex = 0;
-    private int currentAIPontsToUse = 0;
 
     #endregion
 
@@ -206,7 +204,6 @@ public class GameManager : MonoBehaviour
     {
         CurrentState = GameState.EnemyAction;
         currentEnemyActions = maxEnemyActions;
-        currentAIIndex = 0;
         UpdateUI();
         StartCoroutine(ExecuteEnemyTurns());
     }
@@ -299,7 +296,7 @@ public class GameManager : MonoBehaviour
         switch (CurrentState)
         {
             case GameState.PlayerAction:
-                if (currentPlayerActions > 0)
+                if (currentPlayerActions >= 0)
                 {
                     currentPlayerActions -= consume ? 1: -1;
                     userInterface.UpdatePlayerActionPoint(consume);
@@ -311,8 +308,6 @@ public class GameManager : MonoBehaviour
                 {
                     currentEnemyActions -= consume ? 1 : -1;
                     UpdateUI();
-
-                    currentAIPontsToUse--;
 
                     if (currentEnemyActions == 0) EndCurrentTurn();
                 }

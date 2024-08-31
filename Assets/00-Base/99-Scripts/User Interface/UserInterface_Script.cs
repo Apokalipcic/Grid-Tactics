@@ -51,7 +51,7 @@ public class UserInterface_Script : MonoBehaviour
     {
         currentAmountOfActivatedAP = consume ? currentAmountOfActivatedAP-1: currentAmountOfActivatedAP+1;
 
-        playerActionPointsHolder.GetChild(currentAmountOfActivatedAP).gameObject.SetActive(!consume);
+        playerActionPointsHolder.GetChild(currentAmountOfActivatedAP+1).gameObject.SetActive(!consume);
     }
     #endregion
 
