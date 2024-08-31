@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 
 [RequireComponent(typeof(PawnMovement))]
 public class AIController : MonoBehaviour
@@ -12,8 +13,8 @@ public class AIController : MonoBehaviour
 
     [Header("Movement Properties")]
     [SerializeField]
-    [Tooltip("Maximum number of action points to use per turn")]
-    private int maxActionPointsPerTurn = 3;
+    [Tooltip("Maximum number of moves the AI can make per turn")]
+    private int maxMovesPerTurn = 3;
     [SerializeField]
     [Tooltip("Whether the AI can move")]
     private bool canMove = true;
@@ -22,7 +23,7 @@ public class AIController : MonoBehaviour
     private bool isPatrolling = false;
     [SerializeField]
     [Tooltip("Delay in seconds before AI makes its move")]
-    private float moveDelay = 1f;
+    private float moveDelay = 0.5f;
 
     [Header("Components")]
     [SerializeField] private PawnMovement pawnMovement;
@@ -46,8 +47,6 @@ public class AIController : MonoBehaviour
 
         if (gridController == null)
             gridController = FindObjectOfType<GridController>();
-
-        pawnMovement.SetMovementRange(maxActionPointsPerTurn);
     }
 
     private void SetupPositions()
@@ -59,44 +58,41 @@ public class AIController : MonoBehaviour
     #endregion
 
     #region Public Methods
-    public IEnumerator ExecuteTurn()
+    public IEnumerator CalculateAndExecuteMove()
     {
         if (!canMove || pawnMovement.GetIsDead())
+        {
+            Debug.Log($"AI {name} cannot move or is dead. Skipping turn.");
+            yield break;
+        }
+
+        Debug.Log($"Calculating moves for AI pawn [{name}]");
+
+        int availableActionPoints = Mathf.Min(GameManager.Instance.GetAmountOfAvailableActionPoints(), maxMovesPerTurn);
+        List<Vector3> path = CalculatePath(availableActionPoints);
+
+        if (path == null)
             yield break;
 
-        Debug.Log($"Executing turn for AI pawn [{name}]");
+        for (int i = 1; i < path.Count && i <= availableActionPoints; i++)
+        {
+            Vector3 nextMove = path[i];
+            if (pawnMovement.IsValidMove(nextMove))
+            {
+                yield return StartCoroutine(ExecuteMove(nextMove));
+
+                if (GameManager.Instance.GetAmountOfAvailableActionPoints() <= 0 || Vector3.Distance(transform.position, currentPreferableDestination) < 0.1f)
+                    break;
+            }
+            else
+            {
+                Debug.Log($"AI {name} encountered an invalid move. Stopping movement.");
+
+                break;
+            }
+        }
 
         UpdatePreferableDestination();
-        Vector3 bestMove = CalculateBestMove();
-
-        if (pawnMovement.IsValidMove(bestMove))
-        {
-            // Highlight the chosen move
-            CubeController nextCell = GetCellAtPosition(bestMove);
-            if (nextCell != null)
-            {
-                nextCell.ChangeHighlightEnemyVFX(true);
-            }
-
-            Debug.Log($"AI {name} will move to {bestMove} after {moveDelay} seconds");
-            yield return new WaitForSeconds(moveDelay);
-
-            // Clear the highlight
-            if (nextCell != null)
-            {
-                nextCell.ChangeHighlightEnemyVFX(false);
-            }
-
-            Debug.Log($"AI {name} moving to {bestMove}");
-            pawnMovement.MovePath(bestMove);
-            yield return new WaitUntil(() => !pawnMovement.IsMoving());
-
-            GameManager.Instance.UseActionPoint(true);
-        }
-        else
-        {
-            Debug.Log($"AI {name} couldn't find a valid move");
-        }
     }
 
     public void SetCanMove(bool state)
@@ -113,23 +109,42 @@ public class AIController : MonoBehaviour
     #region Private Methods
     private void UpdatePreferableDestination()
     {
-        if (isPatrolling && gridController.SnapToGrid(transform.position) == targetDestination)
-            currentPreferableDestination = originPosition;
-        else if (isPatrolling && gridController.SnapToGrid(transform.position) == originPosition)
-            currentPreferableDestination = targetDestination;
+        if (!isPatrolling)
+            return;
+
+        if (Vector3.Distance(transform.position, currentPreferableDestination) < 0.1f)
+        {
+            currentPreferableDestination = (currentPreferableDestination == targetDestination) ? originPosition : targetDestination;
+            Debug.Log($"AI {name} switching patrol destination to {currentPreferableDestination}");
+        }
     }
 
-    private Vector3 CalculateBestMove()
+    private List<Vector3> CalculatePath(int maxDistance)
     {
-        List<Vector3> validMoves = pawnMovement.GetValidMoves();
+        List<Vector3> path = pawnMovement.Pathfinder.FindPartialPath(transform.position, currentPreferableDestination, maxDistance);
+        pawnMovement.CalculatePushableMoves();
 
-        if (validMoves.Count == 0)
+        return path;
+    }
+
+    private IEnumerator ExecuteMove(Vector3 targetPosition)
+    {
+        CubeController nextCell = GetCellAtPosition(targetPosition);
+        if (nextCell != null)
         {
-            Debug.Log($"AI {name} has no valid moves");
-            return transform.position; // Return current position if no valid moves
+            nextCell.ChangeHighlightEnemyVFX(true);
         }
 
-        return validMoves.OrderBy(move => Vector3.Distance(move, currentPreferableDestination)).First();
+        yield return new WaitForSeconds(moveDelay);
+
+        if (nextCell != null)
+        {
+            nextCell.ChangeHighlightEnemyVFX(false);
+        }
+
+        Debug.Log($"AI {name} moving to {targetPosition}");
+        pawnMovement.MovePath(targetPosition, false);
+        yield return new WaitUntil(() => !pawnMovement.IsMoving());
     }
 
     private CubeController GetCellAtPosition(Vector3 position)

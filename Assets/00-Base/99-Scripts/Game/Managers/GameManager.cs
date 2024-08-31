@@ -57,8 +57,8 @@ public class GameManager : MonoBehaviour
     public float resetDuration = 0.5f;
 
     [Header("Pawns")]
-    private int currentPlayerActions;
-    private int currentEnemyActions;
+    [SerializeField] private int currentPlayerActions;
+    [SerializeField] private int currentEnemyActions;
     public List<PawnMovement> PlayerPawns { get; private set; } = new List<PawnMovement>();
     public List<PawnMovement> EnemyPawns { get; private set; } = new List<PawnMovement>();
     public List<PawnMovement> NeutralPawns { get; private set; } = new List<PawnMovement>();
@@ -214,14 +214,14 @@ public class GameManager : MonoBehaviour
             AIController aiController = enemyPawn.GetComponent<AIController>();
             if (aiController != null)
             {
-                yield return StartCoroutine(aiController.ExecuteTurn());
+                yield return StartCoroutine(aiController.CalculateAndExecuteMove());
 
                 // Wait for a short delay between enemy turns for better visualization
                 yield return new WaitForSeconds(0.5f);
             }
             else
             {
-                OnDebug($"AIController not attached to EnemyPawn [{enemyPawn.name}]", "Error");
+                Debug.LogError($"AIController not attached to EnemyPawn [{enemyPawn.name}]");
             }
 
             // Check if we should end the enemy turn (e.g., out of action points)
@@ -249,7 +249,7 @@ public class GameManager : MonoBehaviour
             AIController aiController = pawn.GetComponent<AIController>();
             if (aiController != null)
             {
-                aiController.ExecuteTurn();
+                //aiController.ExecuteTurn();
                 while (pawn.IsMoving())
                 {
                     yield return null;

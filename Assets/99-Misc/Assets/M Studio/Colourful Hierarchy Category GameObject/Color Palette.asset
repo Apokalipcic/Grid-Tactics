@@ -33,6 +33,11 @@ MonoBehaviour:
     backgroundColor: {r: 0.8509804, g: 0.2117647, b: 0.2117647, a: 1}
     textAlignment: 4
     fontStyle: 1
+  - keyChar: '##04##'
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+    backgroundColor: {r: 0.2117647, g: 0.8509804, b: 0.8451971, a: 1}
+    textAlignment: 4
+    fontStyle: 1
   - keyChar: '##99##'
     textColor: {r: 1, g: 1, b: 1, a: 1}
     backgroundColor: {r: 0, g: 0, b: 0, a: 1}

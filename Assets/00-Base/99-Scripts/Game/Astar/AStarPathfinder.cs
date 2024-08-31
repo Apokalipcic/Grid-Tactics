@@ -14,7 +14,7 @@ public class AStarPathfinder
     }
 
     #region A* Algorithm
-    public List<Vector3> FindPath(Vector3 start, Vector3 end, int maxDistance)
+    public List<Vector3> FindPartialPath(Vector3 start, Vector3 end, int maxDistance)
     {
         var startNode = new PathNode { Position = gridController.SnapToGrid(start) };
         var endNode = new PathNode { Position = gridController.SnapToGrid(end) };
@@ -26,7 +26,7 @@ public class AStarPathfinder
         {
             var currentNode = openSet.OrderBy(n => n.FCost).First();
 
-            if (currentNode.Position == endNode.Position)
+            if (currentNode.GCost >= maxDistance || currentNode.Position == endNode.Position)
             {
                 return ReconstructPath(currentNode);
             }
@@ -56,6 +56,52 @@ public class AStarPathfinder
             }
         }
 
+        return null; // No path found
+    }
+    public List<Vector3> FindPath(Vector3 start, Vector3 end, int maxDistance)
+    {
+        var startNode = new PathNode { Position = gridController.SnapToGrid(start) };
+        var endNode = new PathNode { Position = gridController.SnapToGrid(end) };
+
+        var openSet = new List<PathNode> { startNode };
+        var closedSet = new HashSet<Vector3>();
+
+        while (openSet.Count > 0)
+        {
+            var currentNode = openSet.OrderBy(n => n.FCost).First();
+
+            if (currentNode.Position == endNode.Position)
+            {
+                Debug.Log("Path found!");
+                return ReconstructPath(currentNode);
+            }
+
+            openSet.Remove(currentNode);
+            closedSet.Add(currentNode.Position);
+
+            foreach (var neighbor in GetNeighbors(currentNode))
+            {
+                if (closedSet.Contains(neighbor.Position)) continue;
+
+                int newCostToNeighbor = currentNode.GCost + GetMoveCost(currentNode.Position, neighbor.Position);
+
+                if (newCostToNeighbor > maxDistance) continue;
+
+                if (!openSet.Contains(neighbor) || newCostToNeighbor < neighbor.GCost)
+                {
+                    neighbor.GCost = newCostToNeighbor;
+                    neighbor.HCost = GetDistance(neighbor.Position, endNode.Position);
+                    neighbor.Parent = currentNode;
+
+                    if (!openSet.Contains(neighbor))
+                    {
+                        openSet.Add(neighbor);
+                    }
+                }
+            }
+        }
+
+        Debug.Log("No path found");
         return null; // No path found
     }
 
@@ -159,6 +205,16 @@ public class AStarPathfinder
                 {
                     // Prioritize moving towards player pawns for enemy
                     return 0;
+                }
+
+                if (occupant.CompareTag(pawnMovement.tag))
+                {
+                    return 1;
+                }
+
+                if (occupant.GetComponent<IPushable>() != null)
+                {
+                    return 2;
                 }
             }
 

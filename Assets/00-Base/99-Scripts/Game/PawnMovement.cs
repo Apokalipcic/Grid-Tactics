@@ -43,7 +43,7 @@ public class PawnMovement : MonoBehaviour, IPushable
     private bool isMoving = false;
     private Coroutine currentMovement;
     private Collider pawnCollider;
-    private AStarPathfinder pathfinder;
+    public AStarPathfinder Pathfinder { get; private set; }
     private Dictionary<Vector3, List<Vector3>> cachedPaths;
     private HashSet<Vector3> pushableMoves;
     private CubeController currentOccupiedCell;
@@ -53,12 +53,6 @@ public class PawnMovement : MonoBehaviour, IPushable
     #endregion
 
     #region Initialization
-    private void Start()
-    {
-        GameManager.Instance.AddPawn(this, this.tag);
-        this.gameObject.SetActive(false);
-    }
-
     public void Initialize()
     {
         originPosition = transform.position;
@@ -76,7 +70,7 @@ public class PawnMovement : MonoBehaviour, IPushable
         if (!anim)
             anim = this.GetComponent<Animator>();
 
-        pathfinder = new AStarPathfinder(gridController, this);
+        Pathfinder = new AStarPathfinder(gridController, this);
 
         currentOccupiedCell = gridController.GetCellAtPosition(originPosition)?.GetComponent<CubeController>();
 
@@ -96,7 +90,12 @@ public class PawnMovement : MonoBehaviour, IPushable
     public void CalculateReachableCells()
     {
         int maxDistance = Mathf.Min(movementRange + movementBuff, GameManager.Instance.GetAmountOfAvailableActionPoints());
-        cachedPaths = pathfinder.FindAllReachableCells(transform.position, maxDistance);
+        cachedPaths = Pathfinder.FindAllReachableCells(transform.position, maxDistance);
+        CalculatePushableMoves();
+    }
+
+    public void CalculatePushableMoves()
+    {
         pushableMoves = new HashSet<Vector3>(GetPushMoves());
     }
 
@@ -113,7 +112,7 @@ public class PawnMovement : MonoBehaviour, IPushable
         return validMoves;
     }
 
-    public void MovePath(Vector3 destination)
+    public void MovePath(Vector3 destination, bool useFullPath = true)
     {
         if (isMoving || isPushing)
         {
@@ -146,12 +145,23 @@ public class PawnMovement : MonoBehaviour, IPushable
         RecordAction(transform.position, transform.rotation, 0, true);
         amountOfActionPointsUsed = 0;
 
+
         List<Vector3> path = cachedPaths[destination];
         if (currentMovement != null)
         {
             StopCoroutine(currentMovement);
         }
-        currentMovement = StartCoroutine(MoveAlongPath(path));
+
+        if (!useFullPath)
+        {
+            List<Vector3> shortPath = new List<Vector3>();
+
+            shortPath.Add(destination);
+
+            currentMovement = StartCoroutine(MoveAlongPath(shortPath));
+        }
+        else
+            currentMovement = StartCoroutine(MoveAlongPath(path));
 
         // Clear the cache after starting movement
         cachedPaths = null;
@@ -170,6 +180,8 @@ public class PawnMovement : MonoBehaviour, IPushable
         bool isLastStep = false;
 
         int len = path.Count;
+
+        Debug.Log($"Current path len [{len}] for {this.name} pawn");
 
         foreach (Vector3 cellPosition in path)
         {
@@ -201,7 +213,7 @@ public class PawnMovement : MonoBehaviour, IPushable
                 if (!occupant.CompareTag("Neutral"))
                 {
                     PawnMovement enemyAI = occupant.GetComponent<PawnMovement>();
-                    if (enemyAI != null)
+                    if (enemyAI != null && !enemyAI.GetIsDead())
                     {
                         enemyAI.DeathEvent();
                         GameManager.Instance.UseActionPoint(false);
@@ -465,7 +477,7 @@ public class PawnMovement : MonoBehaviour, IPushable
 
         anim.SetBool("DecreaseSize", true);
 
-        //GameManager.Instance.RemovePawn(this);
+        pawnCollider.enabled = false;
 
         isDead = true;
     }
@@ -678,6 +690,9 @@ public class PawnMovement : MonoBehaviour, IPushable
     #region Undo Action Functions
     private void RecordAction(Vector3 lastPosition, Quaternion lastRotation, int actionPointsSpent = 0, bool isPlayerAction = false)
     {
+        if (this.tag != "Player")
+            return;
+
         int currentMoveNumber = GameManager.Instance.GetCurrentMoveNumber();
 
         turnActions.Add(new PawnAction
@@ -697,17 +712,23 @@ public class PawnMovement : MonoBehaviour, IPushable
     }
     private void RecordAmountOfActionPointSpend(int amount)
     {
+        if (this.tag != "Player")
+            return;
         turnActions[turnActions.Count-1].ActionPointsSpent = amount;
         Debug.Log($"Amount Of Action Points Spend Saved as Action = {amount}, while turnAction count is {turnActions.Count}");
     }
     private void RecordKilledPawn(PawnMovement pawn)
     {
+        if (this.tag != "Player")
+            return;
         turnActions[turnActions.Count - 1].KilledPawns.Add(pawn);
         Debug.Log($"Record KilledPawn, while turnAction count is [{turnActions.Count}]");
 
     }
     private void RecordPushedObject(IPushable pushedObj)
     {
+        if (this.tag != "Player")
+            return;
         turnActions[turnActions.Count-1].PushedObjects.Add(pushedObj);
         Debug.Log($"Record PushedObject, while turnAction count is [{turnActions.Count}]");
     }

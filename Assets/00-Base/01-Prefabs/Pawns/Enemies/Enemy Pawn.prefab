@@ -174,10 +174,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetDestination: {x: 2, y: 0, z: 6}
-  maxActionPointsPerTurn: 3
+  maxMovesPerTurn: 3
   canMove: 1
   isPatrolling: 1
-  moveDelay: 1
+  moveDelay: 0.25
   pawnMovement: {fileID: 695644923112354607}
   gridController: {fileID: 0}
 --- !u!95 &7021070319879917389
