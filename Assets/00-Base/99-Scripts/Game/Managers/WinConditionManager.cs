@@ -33,6 +33,8 @@ public class WinConditionManager : MonoBehaviour
     {
         Debug.Log("All win conditions met! You win!");
         // Implement win logic here
+
+        GameManager.Instance.CallWinScreen();
     }
 
     // Optional: Method to reset all conditions

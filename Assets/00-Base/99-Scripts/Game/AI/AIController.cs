@@ -2,7 +2,6 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.VisualScripting;
 
 [RequireComponent(typeof(PawnMovement))]
 public class AIController : MonoBehaviour
@@ -69,27 +68,45 @@ public class AIController : MonoBehaviour
         Debug.Log($"Calculating moves for AI pawn [{name}]");
 
         int availableActionPoints = Mathf.Min(GameManager.Instance.GetAmountOfAvailableActionPoints(), maxMovesPerTurn);
-        List<Vector3> path = CalculatePath(availableActionPoints);
+        (List<Vector3> path, bool containsPushMove) = CalculatePath(availableActionPoints);
 
-        if (path == null)
+        if (path == null || path.Count <= 1)
+        {
+            Debug.Log($"AI {name} couldn't find a valid path. Skipping turn.");
             yield break;
+        }
 
         for (int i = 1; i < path.Count && i <= availableActionPoints; i++)
         {
             Vector3 nextMove = path[i];
-            if (pawnMovement.IsValidMove(nextMove))
+            if (pawnMovement.GetValidMoves().Contains(nextMove))
             {
-                yield return StartCoroutine(ExecuteMove(nextMove));
-
-                if (GameManager.Instance.GetAmountOfAvailableActionPoints() <= 0 || Vector3.Distance(transform.position, currentPreferableDestination) < 0.1f)
-                    break;
+                yield return StartCoroutine(ExecuteMove(nextMove, false));
+            }
+            else if (pawnMovement.GetPushMoves().Contains(nextMove))
+            {
+                if (containsPushMove)
+                {
+                    yield return StartCoroutine(ExecuteMove(nextMove, true));
+                }
+                else
+                {
+                    Debug.Log($"AI {name} encountered a pushable object but it's not the most efficient path. Recalculating.");
+                    (path, containsPushMove) = CalculatePath(availableActionPoints - i + 1);
+                    i = 0; // Reset the counter to start from the beginning of the new path
+                    continue;
+                }
             }
             else
             {
-                Debug.Log($"AI {name} encountered an invalid move. Stopping movement.");
-
-                break;
+                Debug.Log($"AI {name} encountered an invalid move. Recalculating path.");
+                (path, containsPushMove) = CalculatePath(availableActionPoints - i + 1);
+                i = 0; // Reset the counter to start from the beginning of the new path
+                continue;
             }
+
+            if (GameManager.Instance.GetAmountOfAvailableActionPoints() <= 0 || Vector3.Distance(transform.position, currentPreferableDestination) < 0.1f)
+                break;
         }
 
         UpdatePreferableDestination();
@@ -119,15 +136,14 @@ public class AIController : MonoBehaviour
         }
     }
 
-    private List<Vector3> CalculatePath(int maxDistance)
+    private (List<Vector3>, bool) CalculatePath(int maxDistance)
     {
-        List<Vector3> path = pawnMovement.Pathfinder.FindPartialPath(transform.position, currentPreferableDestination, maxDistance);
+        pawnMovement.CalculateReachableCells();
         pawnMovement.CalculatePushableMoves();
-
-        return path;
+        return pawnMovement.Pathfinder.FindPartialPath(transform.position, currentPreferableDestination, maxDistance);
     }
 
-    private IEnumerator ExecuteMove(Vector3 targetPosition)
+    private IEnumerator ExecuteMove(Vector3 targetPosition, bool isPushMove)
     {
         CubeController nextCell = GetCellAtPosition(targetPosition);
         if (nextCell != null)
@@ -142,9 +158,26 @@ public class AIController : MonoBehaviour
             nextCell.ChangeHighlightEnemyVFX(false);
         }
 
-        Debug.Log($"AI {name} moving to {targetPosition}");
-        pawnMovement.MovePath(targetPosition, false);
-        yield return new WaitUntil(() => !pawnMovement.IsMoving());
+        Debug.Log($"AI {name} attempting to move to {targetPosition}");
+
+        if (isPushMove)
+        {
+            Vector3 pushDirection = (targetPosition - transform.position).normalized;
+            if (pawnMovement.TryPush(pushDirection))
+            {
+                Debug.Log($"AI {name} successfully pushed object at {targetPosition}");
+            }
+            else
+            {
+                Debug.Log($"AI {name} failed to push object at {targetPosition}");
+                yield break; // End the turn if push failed
+            }
+        }
+        else
+        {
+            pawnMovement.MovePath(targetPosition, false);
+            yield return new WaitUntil(() => !pawnMovement.IsMoving());
+        }
     }
 
     private CubeController GetCellAtPosition(Vector3 position)

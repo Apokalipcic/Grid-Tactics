@@ -460,6 +460,16 @@ public class GameManager : MonoBehaviour
     #endregion
 
     #region UI Management
+    public void CallWinScreen()
+    {
+        userInterface.CallWinScreen();
+    }
+
+    public void CallLoseLoose()
+    {
+        userInterface.CallLoseScreen();
+    }
+
     private void UpdateUI()
     {
         // Update UI elements (action points, current turn, etc.)

@@ -14,7 +14,7 @@ public class AStarPathfinder
     }
 
     #region A* Algorithm
-    public List<Vector3> FindPartialPath(Vector3 start, Vector3 end, int maxDistance)
+    public (List<Vector3>, bool) FindPartialPath(Vector3 start, Vector3 end, int maxDistance)
     {
         var startNode = new PathNode { Position = gridController.SnapToGrid(start) };
         var endNode = new PathNode { Position = gridController.SnapToGrid(end) };
@@ -28,7 +28,7 @@ public class AStarPathfinder
 
             if (currentNode.GCost >= maxDistance || currentNode.Position == endNode.Position)
             {
-                return ReconstructPath(currentNode);
+                return (ReconstructPath(currentNode), PathContainsPushMove(currentNode));
             }
 
             openSet.Remove(currentNode);
@@ -56,8 +56,20 @@ public class AStarPathfinder
             }
         }
 
-        return null; // No path found
+        return (null, false); // No path found
     }
+    private bool PathContainsPushMove(PathNode endNode)
+    {
+        var currentNode = endNode;
+        while (currentNode != null)
+        {
+            if (currentNode.IsPushMove)
+                return true;
+            currentNode = currentNode.Parent;
+        }
+        return false;
+    }
+
     public List<Vector3> FindPath(Vector3 start, Vector3 end, int maxDistance)
     {
         var startNode = new PathNode { Position = gridController.SnapToGrid(start) };
@@ -128,9 +140,32 @@ public class AStarPathfinder
         {
             if (IsValidMove(node.Position, pos))
             {
-                yield return new PathNode { Position = pos };
+                yield return new PathNode { Position = pos, IsPushMove = false };
             }
         }
+
+        // Add pushable moves separately
+        foreach (Vector3 pushPos in pawnMovement.GetPushMoves())
+        {
+            if (Vector3.Distance(node.Position, pushPos) <= gridController.cellSize)
+            {
+                yield return new PathNode { Position = pushPos, IsPushMove = true };
+            }
+        }
+    }
+
+    private bool IsPushableMove(Vector3 from, Vector3 to)
+    {
+        CubeController toCube = gridController.GetCellAtPosition(to)?.GetComponent<CubeController>();
+        if (toCube == null || !toCube.IsOccupied()) return false;
+
+        GameObject occupant = toCube.GetOccupant();
+        if (occupant.GetComponent<IPushable>() != null)
+        {
+            return pawnMovement.CanPushChain((to - from).normalized);
+        }
+
+        return false;
     }
 
 
@@ -146,46 +181,23 @@ public class AStarPathfinder
         {
             GameObject occupant = toCube.GetOccupant();
 
-            if (pawnMovement.tag == "Player")
+            if (pawnMovement.CompareTag("Player"))
             {
-
-                // Check if the occupant is an enemy
-                if (occupant.CompareTag("Enemy"))
-                {
-                    // Consider it a valid move if it's occupied by an enemy, regardless of isWalkable
-                    return true;
-                }
-                else
-                {
-                    // For non-enemy occupants, consider it an invalid move
-                    return false;
-                }
+                return occupant.CompareTag("Enemy"); // Only valid if it's an enemy
             }
-            else if (pawnMovement.tag == "Enemy")
+            else if (pawnMovement.CompareTag("Enemy"))
             {
-
-                // Check if the occupant is an enemy
-                if (occupant.CompareTag("Player"))
-                {
-                    // Consider it a valid move if it's occupied by an enemy, regardless of isWalkable
-                    return true;
-                }
-                else
-                {
-                    // For non-enemy occupants, consider it an invalid move
-                    return false;
-                }
+                return occupant.CompareTag("Player"); // Only valid if it's a player
             }
         }
 
-        // For unoccupied cells, respect the isWalkable property
-        return toCube.isWalkable;
+        return toCube.isWalkable; // For unoccupied cells
     }
 
     private int GetMoveCost(Vector3 from, Vector3 to)
     {
         CubeController toCube = gridController.GetCellAtPosition(to)?.GetComponent<CubeController>();
-        if (toCube == null) return int.MaxValue; // Invalid move
+        if (toCube == null) return int.MaxValue;
 
         if (toCube.IsOccupied())
         {
@@ -195,35 +207,24 @@ public class AStarPathfinder
             {
                 if (occupant.CompareTag("Enemy"))
                 {
-                    // Prioritize moving towards enemy pawns for player
-                    return 0;
+                    return 0; // Prioritize moving towards enemy pawns for player
                 }
             }
             else if (pawnMovement.CompareTag("Enemy"))
             {
                 if (occupant.CompareTag("Player"))
                 {
-                    // Prioritize moving towards player pawns for enemy
-                    return 0;
+                    return 0; // Prioritize moving towards player pawns for enemy
                 }
-
-                if (occupant.CompareTag(pawnMovement.tag))
-                {
-                    return 1;
-                }
-
                 if (occupant.GetComponent<IPushable>() != null)
                 {
-                    return 2;
+                    return 3; // Higher cost for pushable objects
                 }
             }
-
-            // Higher cost for occupied cells that are not priority targets
-            return 3;
+            return 3; // Highest cost for other occupied cells
         }
 
-        // Default cost for unoccupied cells
-        return 1;
+        return 1; // Default cost for unoccupied cells
     }
 
     private int GetDistance(Vector3 a, Vector3 b)

@@ -102,14 +102,23 @@ public class PawnMovement : MonoBehaviour, IPushable
 
     public List<Vector3> GetValidMoves()
     {
-        if (cachedPaths == null || pushableMoves == null)
+        if (cachedPaths == null)
         {
             CalculateReachableCells();
         }
+        if (pushableMoves == null)
+        {
+            CalculatePushableMoves();
+        }
 
         List<Vector3> validMoves = new List<Vector3>(cachedPaths.Keys);
-        validMoves.AddRange(pushableMoves);
         return validMoves;
+    }
+    public List<Vector3> GetAllPossibleMoves()
+    {
+        List<Vector3> allMoves = GetValidMoves();
+        allMoves.AddRange(GetPushMoves());
+        return allMoves;
     }
 
     public void MovePath(Vector3 destination, bool useFullPath = true)
@@ -539,6 +548,14 @@ public class PawnMovement : MonoBehaviour, IPushable
         }
 
         return false;
+    }
+    public bool IsPushMove(Vector3 endPosition)
+    {
+        if (pushableMoves == null)
+        {
+            CalculatePushableMoves();
+        }
+        return pushableMoves.Contains(endPosition);
     }
 
     public void ReturnPushObjectOrigin()
