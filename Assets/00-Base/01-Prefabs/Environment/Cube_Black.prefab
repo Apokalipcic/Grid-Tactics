@@ -10,6 +10,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 2218181581886956115, guid: 900dd593b2456ca44b3e2666d3a3e5d3,
         type: 3}
+      propertyPath: m_CastShadows
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2218181581886956115, guid: 900dd593b2456ca44b3e2666d3a3e5d3,
+        type: 3}
       propertyPath: m_Materials.Array.data[0]
       value: 
       objectReference: {fileID: 2100000, guid: 2e4c2679045a19141bb05e91bae97b60, type: 2}
@@ -71,7 +76,7 @@ PrefabInstance:
     - target: {fileID: 4614229793396821214, guid: 900dd593b2456ca44b3e2666d3a3e5d3,
         type: 3}
       propertyPath: m_Name
-      value: Cube_White(Clone) Variant
+      value: Cube_Black
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
